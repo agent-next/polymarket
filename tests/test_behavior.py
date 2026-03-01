@@ -23,6 +23,7 @@ from pm_sim.models import (
     OrderBookLevel,
     OrderRejectedError,
 )
+from pm_sim.orderbook import simulate_buy_fill, simulate_sell_fill
 from pm_sim.orders import create_order, get_pending_orders
 
 
@@ -487,3 +488,146 @@ class TestResetBehavior:
         assert acct.get_history() == []
         assert acct.get_portfolio() == []
         assert acct.get_pending_orders() == []
+
+
+# ---------------------------------------------------------------------------
+# Scenario 11: Orderbook edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestOrderbookEdgeCases:
+    """Cover orderbook simulator edge cases: max_price, min_price, empty fills."""
+
+    def test_buy_max_price_skips_expensive_levels(self):
+        """max_price causes buy fill to stop at that price."""
+        book = _book(asks=[(0.50, 100), (0.60, 100), (0.70, 100)])
+        fill = simulate_buy_fill(book, 1000.0, 0, "fak", max_price=0.55)
+        assert fill.filled or fill.is_partial
+        assert fill.avg_price <= 0.55
+
+    def test_sell_min_price_skips_cheap_levels(self):
+        """min_price causes sell fill to stop at that price."""
+        book = _book(bids=[(0.70, 100), (0.60, 100), (0.50, 100)])
+        fill = simulate_sell_fill(book, 200.0, 0, "fak", min_price=0.65)
+        assert fill.filled or fill.is_partial
+        assert fill.avg_price >= 0.65
+
+    def test_sell_empty_book_returns_empty(self):
+        """Selling into an empty bid side returns unfilled result."""
+        book = OrderBook(asks=[], bids=[])
+        fill = simulate_sell_fill(book, 10.0, 0, "fak")
+        assert not fill.filled
+        assert fill.total_shares == 0
+
+
+# ---------------------------------------------------------------------------
+# Scenario 12: Portfolio midpoint failure fallback
+# ---------------------------------------------------------------------------
+
+
+class TestPortfolioMidpointFallback:
+    """When midpoint API fails, portfolio should use 0.0 for live price."""
+
+    def test_midpoint_failure_uses_zero(self, acct):
+        _mock(acct)
+        acct.buy("test-market", "yes", 100.0)
+
+        # Break midpoint lookup
+        acct.api.get_midpoint = MagicMock(side_effect=Exception("API down"))
+        portfolio = acct.get_portfolio()
+        assert len(portfolio) == 1
+        assert portfolio[0]["current_value"] == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Scenario 13: Resolve edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestResolveEdgeCases:
+    """Edge cases for market resolution."""
+
+    def test_resolve_skips_already_resolved(self, acct):
+        """Already-resolved positions should be skipped on re-resolve."""
+        _mock(acct)
+        acct.buy("test-market", "yes", 100.0)
+
+        # Resolve once
+        resolved = _market(closed=True, outcome_prices=[1.0, 0.0])
+        acct.api.get_market = MagicMock(return_value=resolved)
+        results1 = acct.resolve_market("test-market")
+        assert len(results1) == 1
+
+        # Try to resolve again — should skip already-resolved position
+        results2 = acct.resolve_market("test-market")
+        assert len(results2) == 0
+
+    def test_resolve_all_with_closed_market(self, acct):
+        """resolve_all finds and resolves closed markets."""
+        _mock(acct)
+        acct.buy("test-market", "yes", 50.0)
+
+        # Market is now closed
+        resolved = _market(closed=True, outcome_prices=[1.0, 0.0])
+        acct.api.get_market = MagicMock(return_value=resolved)
+        results = acct.resolve_all()
+        assert len(results) >= 1
+
+    def test_resolve_all_skips_api_error(self, acct):
+        """resolve_all skips markets that fail API lookup."""
+        _mock(acct)
+        acct.buy("test-market", "yes", 50.0)
+
+        # API fails for this market
+        acct.api.get_market = MagicMock(side_effect=Exception("timeout"))
+        results = acct.resolve_all()
+        assert results == []
+
+    def test_determine_winner_no_clear_winner(self, acct):
+        """When no outcome has price >= 0.99, winner is empty string."""
+        _mock(acct)
+        acct.buy("test-market", "yes", 50.0)
+
+        # Market closed but no clear winner (both at 0.50)
+        ambiguous = _market(closed=True, outcome_prices=[0.50, 0.50])
+        acct.api.get_market = MagicMock(return_value=ambiguous)
+        results = acct.resolve_market("test-market")
+        # All positions get $0 payout since no winner
+        for r in results:
+            assert r.payout == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Scenario 14: Limit order check_orders edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestCheckOrdersEdgeCases:
+    """Edge cases in the limit order check_orders cycle."""
+
+    def test_check_orders_transient_api_error(self, acct):
+        """Transient API error during check_orders should be silently skipped."""
+        _mock(acct)
+        acct.place_limit_order("test-market", "yes", "buy", 100.0, 0.55)
+
+        # API fails on get_market
+        acct.api.get_market = MagicMock(side_effect=ConnectionError("timeout"))
+        results = acct.check_orders()
+        # No fills, no rejections — order stays pending
+        assert len(results) == 0
+        assert len(acct.get_pending_orders()) == 1
+
+    def test_limit_buy_insufficient_balance(self, acct):
+        """Limit buy that fills but exceeds cash should be rejected."""
+        # Start with very low balance
+        acct.init_account(1.0)
+        _mock(acct, book=_book(asks=[(0.50, 10000)], bids=[(0.49, 5000)]))
+        acct.place_limit_order("test-market", "yes", "buy", 1000.0, 0.55)
+
+        # Price drops — order triggers, but account can't afford it
+        cheap_book = _book(asks=[(0.50, 10000)], bids=[(0.49, 5000)])
+        acct.api.get_order_book = MagicMock(return_value=cheap_book)
+        results = acct.check_orders()
+        # Should be rejected due to insufficient balance
+        rejected = [r for r in results if r["action"] == "rejected"]
+        assert len(rejected) == 1
