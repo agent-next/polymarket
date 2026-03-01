@@ -37,6 +37,15 @@ from pm_sim.orderbook import simulate_buy_fill, simulate_sell_fill
 
 MIN_ORDER_USD = 1.0  # Polymarket minimum order size
 
+# Errors that indicate an order is permanently unfillable (not transient)
+_PERMANENT_ORDER_ERRORS = (
+    OrderRejectedError,
+    InsufficientBalanceError,
+    InvalidOutcomeError,
+    MarketClosedError,
+    NoPositionError,
+)
+
 
 class Engine:
     """Paper trading engine — 1:1 faithful to Polymarket execution."""
@@ -74,11 +83,6 @@ class Engine:
 
     def _require_account(self) -> Account:
         return self.get_account()
-
-    @staticmethod
-    def _normalize_outcome(outcome: str) -> str:
-        """Normalize outcome string (lowercase, strip whitespace)."""
-        return outcome.lower().strip()
 
     @staticmethod
     def _validate_outcome(outcome: str, market=None) -> str:
@@ -402,8 +406,8 @@ class Engine:
             raise OrderRejectedError(f"Limit price must be between 0 and 1, got {limit_price}")
         if order_type == "gtd" and not expires_at:
             raise OrderRejectedError("GTD orders require expires_at timestamp")
-        if amount < 1.0 and side == "buy":
-            raise OrderRejectedError(f"Minimum buy order size is $1.00, got ${amount:.2f}")
+        if side == "buy" and amount < MIN_ORDER_USD:
+            raise OrderRejectedError(f"Minimum buy order size is ${MIN_ORDER_USD:.2f}, got ${amount:.2f}")
 
         market = self.api.get_market(slug_or_id)
         order = create_order(
@@ -445,12 +449,6 @@ class Engine:
         for o in expired:
             results.append({"order": _order_to_dict(o), "action": "expired"})
 
-        # Permanent failure types that should reject an order
-        _permanent = (
-            OrderRejectedError, InsufficientBalanceError,
-            InvalidOutcomeError, MarketClosedError, NoPositionError,
-        )
-
         # Check pending orders against live midpoints
         pending = get_pending_orders(self.db.conn)
         for order in pending:
@@ -473,9 +471,9 @@ class Engine:
                         "order": _order_to_dict(updated),
                         "action": "filled",
                     })
-            except _permanent as e:
+            except _PERMANENT_ORDER_ERRORS as e:
                 # Permanent failure — mark rejected so it's not retried
-                updated = reject_order(self.db.conn, order.id, str(e))
+                updated = reject_order(self.db.conn, order.id)
                 results.append({
                     "order": _order_to_dict(updated),
                     "action": "rejected",

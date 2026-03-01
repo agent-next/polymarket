@@ -119,7 +119,7 @@ def mark_filled(conn: sqlite3.Connection, order_id: int) -> LimitOrder:
     return _get_order(conn, order_id)
 
 
-def reject_order(conn: sqlite3.Connection, order_id: int, reason: str = "") -> LimitOrder:
+def reject_order(conn: sqlite3.Connection, order_id: int) -> LimitOrder:
     """Mark an order as permanently rejected (unfillable)."""
     conn.execute(
         "UPDATE limit_orders SET status = 'rejected' WHERE id = ?",
