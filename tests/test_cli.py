@@ -963,6 +963,11 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert data["code"] == "BENCHMARK_ERROR"
 
+    def test_account_path_traversal(self, runner, data_dir):
+        """Account names with path traversal are rejected."""
+        result = _invoke(runner, ["--account", "../../etc", "init"], data_dir)
+        assert result.exit_code != 0
+
     @patch("pm_trader.mcp_server.main")
     def test_mcp_command(self, mock_mcp_main, runner, data_dir):
         """mcp command invokes the MCP server."""

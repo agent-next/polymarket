@@ -74,6 +74,8 @@ def _get_account_dir(ctx: click.Context) -> Path:
     """Return the data directory for the active account."""
     base = ctx.obj["data_dir"]
     account = ctx.obj["account"]
+    if ".." in account or "/" in account or "\\" in account:
+        raise click.BadParameter(f"Invalid account name: {account!r}")
     return base / account
 
 

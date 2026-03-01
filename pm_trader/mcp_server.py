@@ -25,9 +25,19 @@ mcp = FastMCP("pm-trader", json_response=True)
 _engine: Engine | None = None
 
 
+def _validate_account_name(account: str) -> str:
+    """Validate account name to prevent path traversal."""
+    if not account or ".." in account or "/" in account or "\\" in account:
+        raise ValueError(f"Invalid account name: {account!r}")
+    if account != account.strip():
+        raise ValueError(f"Invalid account name: {account!r}")
+    return account
+
+
 def _get_engine(account: str = "default") -> Engine:
     """Return the current Engine, creating if needed."""
     global _engine
+    account = _validate_account_name(account)
     data_dir = Path.home() / ".pm-trader" / account
     if _engine is None or _engine.db.data_dir != data_dir:
         if _engine is not None:
@@ -57,12 +67,15 @@ def init_account(balance: float = 10_000.0, account: str = "default") -> str:
 
     Creates a new account or resets an existing one.
     """
-    engine = _get_engine(account)
-    acct = engine.init_account(balance)
-    return _ok({
-        "cash": acct.cash,
-        "starting_balance": acct.starting_balance,
-    })
+    try:
+        engine = _get_engine(account)
+        acct = engine.init_account(balance)
+        return _ok({
+            "cash": acct.cash,
+            "starting_balance": acct.starting_balance,
+        })
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
 
 
 @mcp.tool()
@@ -79,9 +92,12 @@ def get_balance(account: str = "default") -> str:
 @mcp.tool()
 def reset_account(account: str = "default") -> str:
     """Reset account — deletes all trades, positions, and balance."""
-    engine = _get_engine(account)
-    engine.reset()
-    return _ok({"reset": True})
+    try:
+        engine = _get_engine(account)
+        engine.reset()
+        return _ok({"reset": True})
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -342,19 +358,25 @@ def place_limit_order(
 @mcp.tool()
 def list_orders(account: str = "default") -> str:
     """List all pending limit orders."""
-    engine = _get_engine(account)
-    orders = engine.get_pending_orders()
-    return _ok(orders)
+    try:
+        engine = _get_engine(account)
+        orders = engine.get_pending_orders()
+        return _ok(orders)
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
 
 
 @mcp.tool()
 def cancel_order(order_id: int, account: str = "default") -> str:
     """Cancel a pending limit order by ID."""
-    engine = _get_engine(account)
-    order = engine.cancel_limit_order(order_id)
-    if order is None:
-        return _err(f"Order {order_id} not found or not pending", "not_found")
-    return _ok(order)
+    try:
+        engine = _get_engine(account)
+        order = engine.cancel_limit_order(order_id)
+        if order is None:
+            return _err(f"Order {order_id} not found or not pending", "not_found")
+        return _ok(order)
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
 
 
 @mcp.tool()

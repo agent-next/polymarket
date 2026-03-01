@@ -832,3 +832,41 @@ class TestMultiAccount:
 
         bal2 = _parse(get_balance(account="bob"))
         assert bal2["data"]["cash"] == 20_000.0
+
+
+class TestAccountValidation:
+    def test_path_traversal_rejected(self):
+        result = _parse(init_account(account="../../etc"))
+        assert result["ok"] is False
+
+    def test_slash_rejected(self):
+        result = _parse(init_account(account="foo/bar"))
+        assert result["ok"] is False
+
+    def test_backslash_rejected(self):
+        result = _parse(init_account(account="foo\\bar"))
+        assert result["ok"] is False
+
+    def test_empty_rejected(self):
+        result = _parse(init_account(account=""))
+        assert result["ok"] is False
+
+    def test_whitespace_rejected(self):
+        result = _parse(init_account(account=" leading"))
+        assert result["ok"] is False
+
+    def test_valid_account(self):
+        result = _parse(init_account(account="my-agent_01"))
+        assert result["ok"] is True
+
+    def test_reset_traversal(self):
+        result = _parse(reset_account(account="../evil"))
+        assert result["ok"] is False
+
+    def test_list_orders_traversal(self):
+        result = _parse(list_orders(account="../evil"))
+        assert result["ok"] is False
+
+    def test_cancel_order_traversal(self):
+        result = _parse(cancel_order(1, account="../evil"))
+        assert result["ok"] is False
