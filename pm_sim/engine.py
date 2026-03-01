@@ -12,6 +12,8 @@ from pm_sim.api import PolymarketClient
 from pm_sim.db import Database
 from pm_sim.models import (
     Account,
+    AmbiguousResolutionError,
+    ApiError,
     InsufficientBalanceError,
     InvalidOutcomeError,
     MarketClosedError,
@@ -20,7 +22,6 @@ from pm_sim.models import (
     OrderRejectedError,
     Position,
     ResolveResult,
-    SimError,
     Trade,
     TradeResult,
 )
@@ -635,13 +636,13 @@ class Engine:
         if not positions:
             raise NoPositionError(market.slug, "any")
 
+        winning_outcome = _determine_winner(market)
+
         results = []
         for pos in positions:
             if pos.is_resolved or pos.shares <= 0:
                 continue
 
-            # Determine payout: $1/share for winning outcome, $0 for losing
-            winning_outcome = _determine_winner(market)
             if pos.outcome == winning_outcome:
                 payout = pos.shares * 1.0
             else:
@@ -666,7 +667,11 @@ class Engine:
         return results
 
     def resolve_all(self) -> list[ResolveResult]:
-        """Resolve all open positions in closed markets."""
+        """Resolve all open positions in closed markets.
+
+        Skips markets that fail due to transient API/network errors.
+        Raises on permanent resolution failures (e.g. ambiguous outcomes).
+        """
         self._require_account()
         positions = self.db.get_open_positions()
         all_results = []
@@ -681,8 +686,8 @@ class Engine:
                     seen_markets.add(pos.market_condition_id)
                     results = self.resolve_market(pos.market_slug)
                     all_results.extend(results)
-            except Exception:
-                continue
+            except (ApiError, ConnectionError, TimeoutError, OSError):
+                continue  # Transient — retry on next call
 
         return all_results
 
@@ -702,10 +707,7 @@ def _determine_winner(market) -> str:
         if price >= 0.99:
             return outcome.lower()
     prices = dict(zip(market.outcomes, market.outcome_prices))
-    raise SimError(
-        f"No clear winner for {market.slug}: outcome prices {prices} "
-        f"(none >= 0.99)"
-    )
+    raise AmbiguousResolutionError(market.slug, prices)
 
 
 def _order_to_dict(order) -> dict:

@@ -93,6 +93,18 @@ class TickSizeViolationError(SimError):
         self.tick_size = tick_size
 
 
+class AmbiguousResolutionError(SimError):
+    code = "AMBIGUOUS_RESOLUTION"
+
+    def __init__(self, slug: str, prices: dict) -> None:
+        super().__init__(
+            f"No clear winner for {slug}: outcome prices {prices} "
+            f"(none >= 0.99)"
+        )
+        self.slug = slug
+        self.prices = prices
+
+
 class ApiError(SimError):
     code = "API_ERROR"
 

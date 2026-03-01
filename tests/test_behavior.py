@@ -13,6 +13,7 @@ import pytest
 
 from pm_sim.engine import Engine
 from pm_sim.models import (
+    AmbiguousResolutionError,
     InsufficientBalanceError,
     InvalidOutcomeError,
     Market,
@@ -22,7 +23,6 @@ from pm_sim.models import (
     OrderBook,
     OrderBookLevel,
     OrderRejectedError,
-    SimError,
 )
 from pm_sim.orderbook import simulate_buy_fill, simulate_sell_fill
 from pm_sim.orders import create_order, get_order, get_pending_orders
@@ -591,14 +591,25 @@ class TestResolveEdgeCases:
         assert len(results) >= 1
 
     def test_resolve_all_skips_api_error(self, acct):
-        """resolve_all skips markets that fail API lookup."""
+        """resolve_all skips markets that fail API lookup (transient)."""
         _mock(acct)
         acct.buy("test-market", "yes", 50.0)
 
-        # API fails for this market
-        acct.api.get_market = MagicMock(side_effect=Exception("timeout"))
+        # Transient API failure — should be skipped
+        acct.api.get_market = MagicMock(side_effect=ConnectionError("timeout"))
         results = acct.resolve_all()
         assert results == []
+
+    def test_resolve_all_propagates_ambiguous_resolution(self, acct):
+        """resolve_all raises AmbiguousResolutionError instead of swallowing it."""
+        _mock(acct)
+        acct.buy("test-market", "yes", 50.0)
+
+        # Market closed but ambiguous — should raise, not silently skip
+        ambiguous = _market(closed=True, outcome_prices=[0.50, 0.50])
+        acct.api.get_market = MagicMock(return_value=ambiguous)
+        with pytest.raises(AmbiguousResolutionError, match="No clear winner"):
+            acct.resolve_all()
 
     def test_resolve_all_deduplicates_same_market(self, acct):
         """resolve_all only processes each market once even with multiple positions."""
@@ -626,7 +637,7 @@ class TestResolveEdgeCases:
         # Market closed but no clear winner (both at 0.50)
         ambiguous = _market(closed=True, outcome_prices=[0.50, 0.50])
         acct.api.get_market = MagicMock(return_value=ambiguous)
-        with pytest.raises(SimError, match="No clear winner"):
+        with pytest.raises(AmbiguousResolutionError, match="No clear winner"):
             acct.resolve_market("test-market")
 
     def test_determine_winner_borderline_prices(self, acct):
@@ -637,7 +648,7 @@ class TestResolveEdgeCases:
         # 0.98 is below threshold — should raise
         borderline = _market(closed=True, outcome_prices=[0.98, 0.02])
         acct.api.get_market = MagicMock(return_value=borderline)
-        with pytest.raises(SimError, match="No clear winner"):
+        with pytest.raises(AmbiguousResolutionError, match="No clear winner"):
             acct.resolve_market("test-market")
 
         # 0.99 is at threshold — should resolve successfully
