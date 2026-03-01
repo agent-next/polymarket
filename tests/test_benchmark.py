@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from pm_trader.benchmark import compare_accounts, run_strategy
+from unittest.mock import patch
+
+from pm_trader.benchmark import compare_accounts, pk_battle, run_strategy
 from pm_trader.engine import Engine
 
 
@@ -90,3 +92,49 @@ class TestCompareAccounts:
     def test_compare_empty(self):
         results = compare_accounts({})
         assert results == []
+
+
+# ---------------------------------------------------------------------------
+# pk_battle tests
+# ---------------------------------------------------------------------------
+
+
+class TestPkBattle:
+    def test_two_noop_strategies(self):
+        result = pk_battle(
+            "tests.test_benchmark.noop_strategy",
+            "tests.test_benchmark.noop_strategy",
+            name_a="alpha",
+            name_b="beta",
+            balance=5_000.0,
+        )
+        assert result["winner"] == "tie"
+        assert "alpha" in result["card"]
+        assert "beta" in result["card"]
+        assert "Tie" in result["card"]
+        assert "alpha" in result
+        assert "beta" in result
+        assert result["alpha"]["starting_balance"] == 5_000.0
+        assert result["beta"]["starting_balance"] == 5_000.0
+
+    def test_bad_strategy_raises(self):
+        with pytest.raises(ValueError, match="module.function"):
+            pk_battle("bad_path", "also_bad")
+
+    @patch("pm_trader.benchmark.run_strategy")
+    def test_a_wins(self, mock_run):
+        mock_run.side_effect = [
+            {"roi_pct": 15.0, "pnl": 1500.0, "total_trades": 10, "sharpe_ratio": 1.2, "win_rate": 0.7},
+            {"roi_pct": 5.0, "pnl": 500.0, "total_trades": 8, "sharpe_ratio": 0.5, "win_rate": 0.5},
+        ]
+        result = pk_battle("a.run", "b.run", name_a="alpha", name_b="beta")
+        assert result["winner"] == "alpha"
+
+    @patch("pm_trader.benchmark.run_strategy")
+    def test_b_wins(self, mock_run):
+        mock_run.side_effect = [
+            {"roi_pct": 2.0, "pnl": 200.0, "total_trades": 5},
+            {"roi_pct": 18.0, "pnl": 1800.0, "total_trades": 12},
+        ]
+        result = pk_battle("a.run", "b.run", name_a="slow", name_b="fast")
+        assert result["winner"] == "fast"

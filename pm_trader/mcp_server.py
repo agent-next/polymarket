@@ -546,6 +546,36 @@ def pk_card(account_a: str = "default", account_b: str = "aggressive") -> str:
 
 
 # ---------------------------------------------------------------------------
+# PK battle tool
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def pk_battle(
+    strategy_a: str,
+    strategy_b: str,
+    name_a: str = "player_a",
+    name_b: str = "player_b",
+    balance: float = 10_000.0,
+) -> str:
+    """Run two strategies head-to-head in a PK battle.
+
+    Both start with the same balance. Each strategy runs independently,
+    then results are compared with a PK card and winner announced.
+
+    strategy_a/b: dotted Python path like "examples.momentum.run"
+    name_a/b: display names for the PK card
+    """
+    try:
+        from pm_trader.benchmark import pk_battle as _pk_battle
+
+        result = _pk_battle(strategy_a, strategy_b, name_a, name_b, balance)
+        return _ok(result)
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
+
+
+# ---------------------------------------------------------------------------
 # Resolution tools
 # ---------------------------------------------------------------------------
 

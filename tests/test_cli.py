@@ -773,6 +773,35 @@ class TestBenchmarkCompare:
         assert data["ok"] is True
 
 
+class TestBenchmarkPk:
+    def test_pk_bad_strategy(self, runner, data_dir):
+        result = _invoke(
+            runner,
+            ["benchmark", "pk", "nonexistent.a", "nonexistent.b"],
+            data_dir,
+        )
+        data = _parse(result)
+        assert data["ok"] is False
+        assert data["code"] == "PK_ERROR"
+
+    def test_pk_success(self, runner, data_dir):
+        result = _invoke(
+            runner,
+            [
+                "benchmark", "pk",
+                "tests.test_benchmark.noop_strategy",
+                "tests.test_benchmark.noop_strategy",
+                "--name-a", "alpha",
+                "--name-b", "beta",
+            ],
+            data_dir,
+        )
+        assert result.exit_code == 0
+        assert "alpha" in result.output
+        assert "beta" in result.output
+        assert "Winner:" in result.output
+
+
 class TestCliSimErrorPaths:
     """Test that SimError exceptions in CLI produce proper error JSON."""
 

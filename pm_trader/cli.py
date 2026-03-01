@@ -645,6 +645,32 @@ def benchmark_run(ctx: click.Context, strategy_path: str, balance: float) -> Non
         sys.exit(1)
 
 
+@benchmark.command("pk")
+@click.argument("strategy_a")
+@click.argument("strategy_b")
+@click.option("--name-a", default="player_a", help="Display name for strategy A.")
+@click.option("--name-b", default="player_b", help="Display name for strategy B.")
+@click.option("--balance", type=float, default=10_000.0)
+@click.pass_context
+def benchmark_pk(
+    ctx: click.Context, strategy_a: str, strategy_b: str,
+    name_a: str, name_b: str, balance: float,
+) -> None:
+    """PK battle: run two strategies head-to-head."""
+    from pm_trader.benchmark import pk_battle
+
+    try:
+        result = pk_battle(strategy_a, strategy_b, name_a, name_b, balance)
+        click.echo(result["card"])
+        click.echo(f"\nWinner: {result['winner']}")
+    except Exception as e:
+        click.echo(json.dumps(
+            {"ok": False, "error": str(e), "code": "PK_ERROR"},
+            indent=2,
+        ))
+        sys.exit(1)
+
+
 @benchmark.command("compare")
 @click.argument("account_names", nargs=-1, required=True)
 @click.pass_context

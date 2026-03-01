@@ -29,6 +29,7 @@ from pm_trader.mcp_server import (
     leaderboard_entry,
     list_markets,
     list_orders,
+    pk_battle,
     pk_card,
     place_limit_order,
     portfolio,
@@ -276,6 +277,32 @@ class TestShareContent:
 
     def test_not_initialized(self):
         result = _parse(share_content(account="nonexistent"))
+        assert result["ok"] is False
+
+
+# ---------------------------------------------------------------------------
+# pk_battle tool
+# ---------------------------------------------------------------------------
+
+
+class TestPkBattle:
+    def test_two_noop_strategies(self):
+        result = _parse(pk_battle(
+            strategy_a="tests.test_benchmark.noop_strategy",
+            strategy_b="tests.test_benchmark.noop_strategy",
+            name_a="alpha",
+            name_b="beta",
+        ))
+        assert result["ok"] is True
+        assert result["data"]["winner"] == "tie"
+        assert "alpha" in result["data"]["card"]
+        assert "beta" in result["data"]["card"]
+
+    def test_bad_strategy(self):
+        result = _parse(pk_battle(
+            strategy_a="bad_path",
+            strategy_b="also_bad",
+        ))
         assert result["ok"] is False
 
 

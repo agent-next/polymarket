@@ -5,6 +5,8 @@ A strategy is any Python callable with signature:
 
 The runner creates a fresh account, executes the strategy,
 and computes analytics on the resulting trades.
+
+PK battle: run two strategies head-to-head, same starting conditions.
 """
 
 from __future__ import annotations
@@ -92,3 +94,42 @@ def compare_accounts(
         finally:
             engine.close()
     return results
+
+
+def pk_battle(
+    strategy_a_path: str,
+    strategy_b_path: str,
+    name_a: str = "player_a",
+    name_b: str = "player_b",
+    balance: float = 10_000.0,
+) -> dict:
+    """Run two strategies head-to-head and generate a PK comparison.
+
+    Both strategies start with the same balance. Runs each,
+    computes analytics, generates a PK card, and declares a winner.
+
+    Returns:
+        Dict with stats_a, stats_b, pk_card text, and winner name.
+    """
+    from pm_trader.card import generate_pk_card
+
+    stats_a = run_strategy(strategy_a_path, balance=balance)
+    stats_b = run_strategy(strategy_b_path, balance=balance)
+
+    card = generate_pk_card(stats_a, name_a, stats_b, name_b)
+
+    roi_a = stats_a.get("roi_pct", 0.0)
+    roi_b = stats_b.get("roi_pct", 0.0)
+    if roi_a > roi_b:
+        winner = name_a
+    elif roi_b > roi_a:
+        winner = name_b
+    else:
+        winner = "tie"
+
+    return {
+        "winner": winner,
+        "card": card,
+        name_a: stats_a,
+        name_b: stats_b,
+    }
