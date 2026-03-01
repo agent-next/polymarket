@@ -692,7 +692,6 @@ def backtest(
     depth: synthetic order book depth per level
     """
     try:
-        import importlib
         from pathlib import Path as P
 
         from pm_trader.backtest import (
@@ -700,19 +699,29 @@ def backtest(
             load_snapshots_json,
             run_backtest,
         )
+        from pm_trader.benchmark import _validate_strategy_path
 
-        data = P(data_path)
+        import importlib
+
+        # Validate strategy path (allowlist + format check)
+        module_path, func_name = _validate_strategy_path(strategy_path)
+
+        # Validate data_path is under allowed directories (no traversal)
+        data = P(data_path).resolve()
+        allowed_parents = (P.home(), P("/tmp"))
+        if not any(data.is_relative_to(p) for p in allowed_parents):
+            return _err(
+                "data_path must be under home directory or /tmp",
+                "invalid_path",
+            )
+
         if data.suffix == ".json":
             snapshots = load_snapshots_json(data)
         else:
             snapshots = load_snapshots_csv(data)
 
-        # Import strategy
-        parts = strategy_path.rsplit(".", 1)
-        if len(parts) != 2:
-            return _err("strategy_path must be module.function", "invalid_strategy")
-        mod = importlib.import_module(parts[0])
-        strategy_fn = getattr(mod, parts[1])
+        mod = importlib.import_module(module_path)
+        strategy_fn = getattr(mod, func_name)
 
         from dataclasses import asdict
         result = run_backtest(

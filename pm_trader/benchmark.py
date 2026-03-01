@@ -12,11 +12,41 @@ PK battle: run two strategies head-to-head, same starting conditions.
 from __future__ import annotations
 
 import importlib
+import re
 from pathlib import Path
 from tempfile import mkdtemp
 
 from pm_trader.analytics import compute_stats
 from pm_trader.engine import Engine
+
+# Only allow loading strategies from these packages (prevents arbitrary code execution)
+_ALLOWED_STRATEGY_PREFIXES = ("examples.", "tests.test_benchmark.")
+
+# Strategies must be valid Python identifiers separated by dots
+_STRATEGY_PATH_RE = re.compile(r"^[a-zA-Z_]\w*(\.[a-zA-Z_]\w*)+$")
+
+
+def _validate_strategy_path(strategy_path: str) -> tuple[str, str]:
+    """Validate and parse a strategy path, returning (module_path, func_name).
+
+    Raises ValueError if the path is malformed or not in the allowlist.
+    """
+    module_path, _, func_name = strategy_path.rpartition(".")
+    if not module_path:
+        raise ValueError(
+            f"Strategy path must be 'module.function', got: {strategy_path!r}"
+        )
+    if not _STRATEGY_PATH_RE.match(strategy_path):
+        raise ValueError(
+            f"Strategy path contains invalid characters: {strategy_path!r}"
+        )
+    if not any(strategy_path.startswith(p) for p in _ALLOWED_STRATEGY_PREFIXES):
+        raise ValueError(
+            f"Strategy must be from an allowed package "
+            f"({', '.join(_ALLOWED_STRATEGY_PREFIXES)}), "
+            f"got: {strategy_path!r}"
+        )
+    return module_path, func_name
 
 
 def run_strategy(
@@ -28,19 +58,15 @@ def run_strategy(
     """Run a strategy and return its scorecard.
 
     Args:
-        strategy_path: Dotted import path like "my_module.my_strategy".
+        strategy_path: Dotted import path like "examples.momentum.run".
+            Must be from an allowed package (examples.* or tests.test_benchmark.*).
         balance: Starting account balance.
         data_dir: Optional data directory. Uses a temp dir if not provided.
 
     Returns:
         Dict with strategy name, analytics metrics, and trade count.
     """
-    # Import the strategy callable
-    module_path, _, func_name = strategy_path.rpartition(".")
-    if not module_path:
-        raise ValueError(
-            f"Strategy path must be 'module.function', got: {strategy_path!r}"
-        )
+    module_path, func_name = _validate_strategy_path(strategy_path)
     module = importlib.import_module(module_path)
     strategy_fn = getattr(module, func_name)
 

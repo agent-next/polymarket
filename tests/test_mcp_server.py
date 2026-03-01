@@ -749,6 +749,13 @@ class TestBacktestTool:
         result = _parse(backtest("/tmp/data.csv", "bad_path"))
         assert result["ok"] is False
 
+    def test_disallowed_strategy(self):
+        """Strategy from non-allowlisted module is rejected."""
+        from pm_trader.mcp_server import backtest
+        result = _parse(backtest("/tmp/data.csv", "os.system"))
+        assert result["ok"] is False
+        assert "allowed package" in result["error"]
+
     def test_backtest_csv(self, tmp_path):
         """Backtest with a CSV file and noop strategy."""
         from pm_trader.mcp_server import backtest
@@ -759,21 +766,12 @@ class TestBacktestTool:
             "2025-01-02T00:00:00Z,test-market,yes,0.55\n"
             "2025-01-03T00:00:00Z,test-market,yes,0.60\n"
         )
-
-        strategy_mod = tmp_path / "strat_csv.py"
-        strategy_mod.write_text(
-            "def noop(engine, snapshot, prices):\n"
-            "    pass\n"
-        )
-        import sys
-        sys.path.insert(0, str(tmp_path))
-        try:
-            result = _parse(backtest(str(csv), "strat_csv.noop"))
-            assert result["ok"] is True
-            assert result["data"]["snapshots_processed"] == 3
-            assert result["data"]["total_trades"] == 0
-        finally:
-            sys.path.pop(0)
+        result = _parse(backtest(
+            str(csv), "tests.test_benchmark.noop_backtest_strategy",
+        ))
+        assert result["ok"] is True
+        assert result["data"]["snapshots_processed"] == 3
+        assert result["data"]["total_trades"] == 0
 
     def test_backtest_json(self, tmp_path):
         """Backtest with a JSON file."""
@@ -785,20 +783,11 @@ class TestBacktestTool:
         ]
         f = tmp_path / "prices.json"
         f.write_text(json_mod.dumps(data))
-
-        strategy_mod = tmp_path / "strat_json.py"
-        strategy_mod.write_text(
-            "def noop(engine, snapshot, prices):\n"
-            "    pass\n"
-        )
-        import sys
-        sys.path.insert(0, str(tmp_path))
-        try:
-            result = _parse(backtest(str(f), "strat_json.noop"))
-            assert result["ok"] is True
-            assert result["data"]["snapshots_processed"] == 2
-        finally:
-            sys.path.pop(0)
+        result = _parse(backtest(
+            str(f), "tests.test_benchmark.noop_backtest_strategy",
+        ))
+        assert result["ok"] is True
+        assert result["data"]["snapshots_processed"] == 2
 
 
 class TestMcpServerMain:
@@ -809,20 +798,23 @@ class TestMcpServerMain:
 
 
 class TestBacktestInvalidStrategy:
-    def test_strategy_path_no_dot(self, tmp_path):
+    def test_strategy_path_no_dot(self):
         """strategy_path without module.function format returns error."""
-        # Create a valid data file so we get past the file-loading step
-        csv_file = tmp_path / "data.csv"
-        csv_file.write_text(
-            "timestamp,market_slug,outcome,midpoint\n"
-            "2026-01-01T00:00:00Z,test,yes,0.65\n"
-        )
         result = _parse(backtest(
-            data_path=str(csv_file),
+            data_path="/tmp/data.csv",
             strategy_path="no_dot_here",
         ))
         assert result["ok"] is False
         assert "module.function" in result["error"]
+
+    def test_data_path_traversal(self):
+        """data_path outside allowed directories is rejected."""
+        result = _parse(backtest(
+            data_path="/etc/passwd",
+            strategy_path="examples.momentum.run",
+        ))
+        assert result["ok"] is False
+        assert "invalid_path" in result.get("code", "")
 
 
 class TestMultiAccount:

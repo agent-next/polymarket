@@ -29,6 +29,11 @@ def buy_once_strategy(engine: Engine) -> None:
         engine.buy(markets[0].slug, "yes", 100.0)
 
 
+def noop_backtest_strategy(engine, snapshot, prices) -> None:
+    """Noop backtest strategy for testing."""
+    pass
+
+
 # ---------------------------------------------------------------------------
 # run_strategy tests
 # ---------------------------------------------------------------------------
@@ -39,9 +44,13 @@ class TestRunStrategy:
         with pytest.raises(ValueError, match="module.function"):
             run_strategy("just_a_name")
 
-    def test_missing_module(self):
-        with pytest.raises(ModuleNotFoundError):
-            run_strategy("nonexistent_module.func")
+    def test_disallowed_module(self):
+        with pytest.raises(ValueError, match="allowed package"):
+            run_strategy("os.system")
+
+    def test_invalid_characters(self):
+        with pytest.raises(ValueError, match="invalid characters"):
+            run_strategy("examples.foo;bar.run")
 
     def test_missing_function(self):
         with pytest.raises(AttributeError):
