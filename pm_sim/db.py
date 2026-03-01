@@ -135,6 +135,7 @@ class Database:
             DROP TABLE IF EXISTS positions;
             DROP TABLE IF EXISTS account;
             DROP TABLE IF EXISTS market_cache;
+            DROP TABLE IF EXISTS limit_orders;
             """
         )
         self.init_schema()

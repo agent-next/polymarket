@@ -127,6 +127,26 @@ class TestReset:
         assert db.get_open_positions() == []
         assert db.get_cache("test_key") is None
 
+    def test_reset_clears_limit_orders(self, db: Database) -> None:
+        from pm_sim.orders import create_order, get_pending_orders, init_orders_schema
+
+        init_orders_schema(db.conn)
+        create_order(
+            db.conn,
+            market_slug="m",
+            market_condition_id="0x1",
+            outcome="yes",
+            side="buy",
+            amount=100.0,
+            limit_price=0.50,
+        )
+        assert len(get_pending_orders(db.conn)) == 1
+
+        db.reset()
+        init_orders_schema(db.conn)
+
+        assert len(get_pending_orders(db.conn)) == 0
+
 
 # ======================================================================
 # Trades

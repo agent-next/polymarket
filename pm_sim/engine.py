@@ -65,6 +65,7 @@ class Engine:
 
     def reset(self) -> None:
         self.db.reset()
+        init_orders_schema(self.db.conn)
 
     # ------------------------------------------------------------------
     # Validation helpers
