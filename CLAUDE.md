@@ -1,19 +1,19 @@
-# pm-sim
+# polymarket-paper-trader
 
 Paper trading simulator for Polymarket. Built for AI agents. Python 3.10+, SQLite, Click CLI, FastMCP.
 
 ## Commands
 
 ```bash
-# Tests (451 tests, 100% coverage)
+# Tests (504 tests, 100% coverage)
 python3 -m pytest tests/ -x -q                          # fast, stop on first failure
 python3 -m pytest tests/ -v                              # verbose
-python3 -m pytest tests/ --cov=pm_sim --cov-report=term-missing  # coverage
+python3 -m pytest tests/ --cov=pm_trader --cov-report=term-missing  # coverage
 python3 -m pytest tests/test_e2e_live.py -v              # live API (requires network)
 
 # Run
-pm-sim init --balance 10000
-pm-sim-mcp                                               # MCP server on stdio
+pm-trader init --balance 10000
+pm-trader-mcp                                            # MCP server on stdio
 ```
 
 ## Architecture
@@ -53,14 +53,14 @@ mcp_server.py → engine.py (same stack, 23 MCP tools)
 - **FOK** (fill-or-kill): all or nothing. **FAK** (fill-and-kill): partial fills ok
 - **Limit orders**: GTC (rest until filled/cancelled) or GTD (expire at timestamp)
 - **No price/book caching**: always live from API. Market metadata cached 5 min.
-- **Multi-account**: separate SQLite databases at `~/.pm-sim/<account>/paper.db`
+- **Multi-account**: separate SQLite databases at `~/.pm-trader/<account>/paper.db`
 
 ## Testing rules
 
 - **Always run tests after changes**: `python3 -m pytest tests/ -x -q`
 - **Update tests in the same pass** as bug fixes or refactors. A change is not done until tests pass.
 - **100% coverage is maintained.** New code must include tests. Use `pragma: no cover` only for `if __name__ == "__main__"` guards.
-- Test files mirror source: `pm_sim/engine.py` → `tests/test_engine.py`
+- Test files mirror source: `pm_trader/engine.py` → `tests/test_engine.py`
 - Behavior tests in `test_behavior.py`: test from an agent's perspective (full workflows, not internals)
 - E2E live tests in `test_e2e_live.py`: use `pytest.skip()` when live API data is unavailable
 - Shared fixtures in `conftest.py`: `tmp_data_dir`, `sample_market`, `closed_market`, `sample_order_book`

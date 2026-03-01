@@ -1,4 +1,4 @@
-"""Comprehensive tests for pm_sim.db."""
+"""Comprehensive tests for pm_trader.db."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from pm_sim.db import Database
-from pm_sim.models import Account, Position, Trade
+from pm_trader.db import Database
+from pm_trader.models import Account, Position, Trade
 
 
 @pytest.fixture
@@ -128,7 +128,7 @@ class TestReset:
         assert db.get_cache("test_key") is None
 
     def test_reset_clears_limit_orders(self, db: Database) -> None:
-        from pm_sim.orders import create_order, get_pending_orders, init_orders_schema
+        from pm_trader.orders import create_order, get_pending_orders, init_orders_schema
 
         init_orders_schema(db.conn)
         create_order(

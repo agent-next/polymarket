@@ -1,4 +1,4 @@
-"""Performance analytics for pm-sim paper trading.
+"""Performance analytics for pm-trader paper trading.
 
 Pure functions that compute metrics from trade history and account data.
 No side effects, no API calls, no database writes.
@@ -10,7 +10,7 @@ import math
 from collections import defaultdict
 from datetime import datetime
 
-from pm_sim.models import Account, Trade
+from pm_trader.models import Account, Trade
 
 
 def compute_stats(

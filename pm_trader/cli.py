@@ -1,4 +1,4 @@
-"""Click CLI for pm-sim — Polymarket paper trading simulator."""
+"""Click CLI for pm-trader — Polymarket paper trading simulator."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from pathlib import Path
 
 import click
 
-from pm_sim.engine import Engine
-from pm_sim.models import SimError
+from pm_trader.engine import Engine
+from pm_trader.models import SimError
 
-DEFAULT_DATA_DIR = Path.home() / ".pm-sim"
+DEFAULT_DATA_DIR = Path.home() / ".pm-trader"
 DEFAULT_ACCOUNT = "default"
 
 
@@ -53,18 +53,18 @@ def _serialize(obj):
     "--data-dir",
     type=click.Path(path_type=Path),
     default=DEFAULT_DATA_DIR,
-    envvar="PM_SIM_DATA_DIR",
+    envvar="PM_TRADER_DATA_DIR",
     help="Data directory for SQLite database.",
 )
 @click.option(
     "--account",
     default=DEFAULT_ACCOUNT,
-    envvar="PM_SIM_ACCOUNT",
+    envvar="PM_TRADER_ACCOUNT",
     help="Account name (each account gets its own database).",
 )
 @click.pass_context
 def main(ctx: click.Context, data_dir: Path, account: str) -> None:
-    """pm-sim — 1:1 faithful Polymarket paper trading simulator."""
+    """pm-trader — 1:1 faithful Polymarket paper trading simulator."""
     ctx.ensure_object(dict)
     ctx.obj["data_dir"] = data_dir
     ctx.obj["account"] = account
@@ -368,10 +368,13 @@ def resolve(ctx: click.Context, slug_or_id: str | None, resolve_all: bool) -> No
 # ---------------------------------------------------------------------------
 
 @main.command()
+@click.option("--card", is_flag=True, default=False, help="Output shareable stats card for chat.")
+@click.option("--plain", is_flag=True, default=False, help="Plain text card (no markdown).")
+@click.option("--tweet", is_flag=True, default=False, help="X/Twitter optimized card.")
 @click.pass_context
-def stats(ctx: click.Context) -> None:
+def stats(ctx: click.Context, card: bool, plain: bool, tweet: bool) -> None:
     """Show performance analytics (Sharpe, win rate, drawdown, P&L)."""
-    from pm_sim.analytics import compute_stats
+    from pm_trader.analytics import compute_stats
 
     engine = _get_engine(ctx)
     try:
@@ -380,7 +383,58 @@ def stats(ctx: click.Context) -> None:
         portfolio = engine.get_portfolio()
         positions_value = sum(p["current_value"] for p in portfolio)
         result = compute_stats(trades, account, positions_value)
-        click.echo(_ok(result))
+        if tweet or card or plain:
+            from pm_trader.card import generate_card, generate_card_plain, generate_tweet
+            account_name = ctx.obj["account"]
+            if tweet:
+                click.echo(generate_tweet(result, account_name))
+            elif plain:
+                click.echo(generate_card_plain(result, account_name))
+            else:
+                click.echo(generate_card(result, account_name))
+        else:
+            click.echo(_ok(result))
+    except SimError as e:
+        click.echo(_err(e))
+        sys.exit(1)
+    finally:
+        engine.close()
+
+
+@main.command()
+@click.pass_context
+def leaderboard(ctx: click.Context) -> None:
+    """Generate a leaderboard entry for ranking and PK."""
+    from pm_trader.analytics import compute_stats
+
+    engine = _get_engine(ctx)
+    try:
+        account = engine.get_account()
+        trades = engine.get_history(limit=10_000)
+        portfolio = engine.get_portfolio()
+        positions_value = sum(p["current_value"] for p in portfolio)
+        result = compute_stats(trades, account, positions_value)
+
+        first_trade = trades[-1].created_at if trades else None
+        last_trade = trades[0].created_at if trades else None
+        account_name = ctx.obj["account"]
+
+        click.echo(_ok({
+            "account": account_name,
+            "starting_balance": result.get("starting_balance", 0.0),
+            "total_value": result.get("total_value", 0.0),
+            "roi_pct": result.get("roi_pct", 0.0),
+            "pnl": result.get("pnl", 0.0),
+            "sharpe_ratio": result.get("sharpe_ratio", 0.0),
+            "win_rate": result.get("win_rate", 0.0),
+            "total_trades": result.get("total_trades", 0),
+            "max_drawdown": result.get("max_drawdown", 0.0),
+            "total_fees": result.get("total_fees", 0.0),
+            "first_trade_at": first_trade,
+            "last_trade_at": last_trade,
+            "open_positions": len(portfolio),
+            "qualified": result.get("total_trades", 0) >= 10,
+        }))
     except SimError as e:
         click.echo(_err(e))
         sys.exit(1)
@@ -405,7 +459,7 @@ def export() -> None:
 @click.pass_context
 def export_trades(ctx: click.Context, fmt: str, output_file: Path | None, limit: int) -> None:
     """Export trade history."""
-    from pm_sim.export import export_trades_csv, export_trades_json
+    from pm_trader.export import export_trades_csv, export_trades_json
 
     engine = _get_engine(ctx)
     try:
@@ -433,7 +487,7 @@ def export_trades(ctx: click.Context, fmt: str, output_file: Path | None, limit:
 @click.pass_context
 def export_positions(ctx: click.Context, fmt: str, output_file: Path | None) -> None:
     """Export current positions."""
-    from pm_sim.export import export_positions_csv, export_positions_json
+    from pm_trader.export import export_positions_csv, export_positions_json
 
     engine = _get_engine(ctx)
     try:
@@ -545,8 +599,8 @@ def benchmark() -> None:
 @click.option("--balance", type=float, default=10_000.0)
 @click.pass_context
 def benchmark_run(ctx: click.Context, strategy_path: str, balance: float) -> None:
-    """Run a strategy: pm-sim benchmark run module.function"""
-    from pm_sim.benchmark import run_strategy
+    """Run a strategy: pm-trader benchmark run module.function"""
+    from pm_trader.benchmark import run_strategy
 
     try:
         result = run_strategy(strategy_path, balance=balance)
@@ -564,7 +618,7 @@ def benchmark_run(ctx: click.Context, strategy_path: str, balance: float) -> Non
 @click.pass_context
 def benchmark_compare(ctx: click.Context, account_names: tuple[str, ...]) -> None:
     """Compare analytics across named accounts."""
-    from pm_sim.benchmark import compare_accounts
+    from pm_trader.benchmark import compare_accounts
 
     base = ctx.obj["data_dir"]
     data_dirs = {}
@@ -612,7 +666,7 @@ def orders_place(
     ctx: click.Context, slug_or_id: str, outcome: str, side: str,
     amount: float, limit_price: float, order_type: str, expires_at: str | None,
 ) -> None:
-    """Place a limit order: pm-sim orders place SLUG yes buy 100 0.55"""
+    """Place a limit order: pm-trader orders place SLUG yes buy 100 0.55"""
     engine = _get_engine(ctx)
     try:
         result = engine.place_limit_order(
@@ -715,5 +769,5 @@ def watch(ctx: click.Context, slugs_or_ids: tuple[str, ...], outcomes: tuple[str
 @main.command()
 def mcp() -> None:
     """Start MCP server (stdio transport) for AI agent integration."""
-    from pm_sim.mcp_server import main as mcp_main
+    from pm_trader.mcp_server import main as mcp_main
     mcp_main()

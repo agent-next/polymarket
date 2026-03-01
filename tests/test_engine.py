@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pm_sim.db import Database
-from pm_sim.engine import Engine
-from pm_sim.models import (
+from pm_trader.db import Database
+from pm_trader.engine import Engine
+from pm_trader.models import (
     InsufficientBalanceError,
     InvalidOutcomeError,
     Market,
@@ -531,7 +531,7 @@ class TestCheckOrdersRejection:
         """An order with amount below minimum should be rejected, not retried forever."""
         _mock_api(initialized_engine)
         # Bypass engine validation by inserting directly into orders table
-        from pm_sim.orders import create_order, get_pending_orders
+        from pm_trader.orders import create_order, get_pending_orders
 
         # Sell order with no position — permanently unfillable (NoPositionError)
         order = create_order(
@@ -581,7 +581,7 @@ class TestLimitOrderPriceEnforcement:
     def test_buy_limit_skips_asks_above_limit(self, initialized_engine: Engine):
         """A buy limit at 0.55 must NOT fill when all asks are above 0.55."""
         _mock_api(initialized_engine)
-        from pm_sim.orders import create_order, get_pending_orders
+        from pm_trader.orders import create_order, get_pending_orders
 
         create_order(
             initialized_engine.db.conn,
@@ -601,7 +601,7 @@ class TestLimitOrderPriceEnforcement:
     def test_buy_limit_fills_at_or_below_limit(self, initialized_engine: Engine):
         """A buy limit at 0.70 fills at asks 0.66, 0.67, 0.68 (all <= 0.70)."""
         _mock_api(initialized_engine)
-        from pm_sim.orders import create_order, get_pending_orders
+        from pm_trader.orders import create_order, get_pending_orders
 
         create_order(
             initialized_engine.db.conn,
@@ -753,7 +753,7 @@ class TestResolveAll:
 class TestWatchPricesEdgeCases:
     def test_watch_market_not_found(self, initialized_engine: Engine):
         """Markets that can't be resolved are silently skipped."""
-        from pm_sim.models import MarketNotFoundError
+        from pm_trader.models import MarketNotFoundError
         initialized_engine.api.get_market = MagicMock(
             side_effect=MarketNotFoundError("bad")
         )
@@ -782,7 +782,7 @@ class TestLimitOrderExecution:
         _mock_api(initialized_engine)
         # First buy shares
         initialized_engine.buy("btc", "yes", 100.0)
-        from pm_sim.orders import create_order, get_pending_orders
+        from pm_trader.orders import create_order, get_pending_orders
 
         create_order(
             initialized_engine.db.conn,
@@ -801,7 +801,7 @@ class TestLimitOrderExecution:
     def test_sell_limit_skips_when_bid_below_limit(self, initialized_engine: Engine):
         _mock_api(initialized_engine)
         initialized_engine.buy("btc", "yes", 100.0)
-        from pm_sim.orders import create_order, get_pending_orders
+        from pm_trader.orders import create_order, get_pending_orders
 
         create_order(
             initialized_engine.db.conn,

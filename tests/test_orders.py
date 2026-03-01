@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from pm_sim.orders import (
+from pm_trader.orders import (
     cancel_order,
     create_order,
     expire_orders,
@@ -65,7 +65,7 @@ class TestCreateOrder:
 
     def test_gtd_z_and_plus00_are_equivalent(self, conn):
         """Bug #5: 'Z' and '+00:00' must be treated as the same instant."""
-        from pm_sim.orders import expire_orders
+        from pm_trader.orders import expire_orders
         from datetime import datetime, timezone
         # Create an order with Z-suffix that has already expired
         order = _create(

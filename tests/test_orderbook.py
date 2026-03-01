@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from pm_sim.models import OrderBook, OrderBookLevel
-from pm_sim.orderbook import calculate_fee, simulate_buy_fill, simulate_sell_fill
+from pm_trader.models import OrderBook, OrderBookLevel
+from pm_trader.orderbook import calculate_fee, simulate_buy_fill, simulate_sell_fill
 
 
 # ---------------------------------------------------------------------------

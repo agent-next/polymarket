@@ -1,4 +1,4 @@
-"""Benchmarking harness for pm-sim trading strategies.
+"""Benchmarking harness for pm-trader trading strategies.
 
 A strategy is any Python callable with signature:
     def strategy(engine: Engine) -> None
@@ -13,8 +13,8 @@ import importlib
 from pathlib import Path
 from tempfile import mkdtemp
 
-from pm_sim.analytics import compute_stats
-from pm_sim.engine import Engine
+from pm_trader.analytics import compute_stats
+from pm_trader.engine import Engine
 
 
 def run_strategy(
@@ -44,7 +44,7 @@ def run_strategy(
 
     # Create a fresh engine
     if data_dir is None:
-        data_dir = Path(mkdtemp(prefix="pm-sim-bench-"))
+        data_dir = Path(mkdtemp(prefix="pm-trader-bench-"))
     engine = Engine(data_dir)
     engine.init_account(balance)
 

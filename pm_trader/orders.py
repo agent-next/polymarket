@@ -1,10 +1,10 @@
-"""Limit order management for pm-sim.
+"""Limit order management for pm-trader.
 
 GTC (Good-Til-Cancelled): rests until price target is hit or manually cancelled.
 GTD (Good-Til-Date): GTC with an expiry timestamp.
 
 Orders are stored in SQLite and checked against live midpoint prices
-when the agent calls `pm-sim orders check`.
+when the agent calls `pm-trader orders check`.
 """
 
 from __future__ import annotations

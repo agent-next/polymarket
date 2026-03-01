@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pm-sim"
+name = "polymarket-paper-trader"
 version = "0.1.0"
-description = "1:1 faithful Polymarket paper trading simulator for AI agents"
+description = "Paper trading on Polymarket — real order books, real fees, zero risk. Built for AI agents."
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",
@@ -19,6 +19,9 @@ dev = [
     "pytest-httpx>=0.30",
 ]
 
+[tool.setuptools.packages.find]
+include = ["pm_trader*"]
+
 [project.scripts]
-pm-sim = "pm_sim.cli:main"
-pm-sim-mcp = "pm_sim.mcp_server:main"
+pm-trader = "pm_trader.cli:main"
+pm-trader-mcp = "pm_trader.mcp_server:main"

@@ -1,4 +1,4 @@
-"""SQLite database layer for pm-sim."""
+"""SQLite database layer for pm-trader."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from pm_sim.models import Account, Position, Trade
+from pm_trader.models import Account, Position, Trade
 
 
 SCHEMA_SQL = """\
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS market_cache (
 
 
 class Database:
-    """SQLite database for pm-sim paper trading state."""
+    """SQLite database for pm-trader paper trading state."""
 
     def __init__(self, data_dir: Path) -> None:
         self.data_dir = data_dir

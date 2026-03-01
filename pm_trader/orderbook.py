@@ -1,13 +1,13 @@
 """Order book fill simulation engine.
 
 Walks a real Polymarket order book level-by-level to compute exact execution
-prices, slippage, and fees.  This is the core of pm-sim's 1:1 faithful
+prices, slippage, and fees.  This is the core of pm-trader's 1:1 faithful
 trade simulation.
 """
 
 from __future__ import annotations
 
-from pm_sim.models import Fill, FillResult, OrderBook
+from pm_trader.models import Fill, FillResult, OrderBook
 
 
 # ---------------------------------------------------------------------------

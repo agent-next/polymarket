@@ -1,4 +1,4 @@
-"""CSV and JSON export for pm-sim trade history and positions."""
+"""CSV and JSON export for pm-trader trade history and positions."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import csv
 import io
 import json
 
-from pm_sim.models import Trade
+from pm_trader.models import Trade
 
 
 def export_trades_csv(trades: list[Trade]) -> str:

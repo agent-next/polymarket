@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 
 import httpx
 
-from pm_sim.db import Database
-from pm_sim.models import (
+from pm_trader.db import Database
+from pm_trader.models import (
     ApiError,
     Market,
     MarketNotFoundError,

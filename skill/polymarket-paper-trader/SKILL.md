@@ -1,22 +1,30 @@
 ---
-name: pm-sim
-description: "Paper trading on Polymarket — trade prediction markets with real order books, zero risk. Built for AI agents."
-version: 1.0.0
+name: polymarket-paper-trader
+description: "Paper trading on Polymarket — trade prediction markets with real order books, zero risk. Built for AI agents. MCP server, backtesting, strategy PK, shareable stats cards."
+version: 0.1.2
 metadata:
   clawdbot:
     requires:
       bins:
-        - pm-sim-mcp
+        - pm-trader-mcp
         - python3
     install:
       - kind: uv
-        package: pm-sim
-        bins: [pm-sim, pm-sim-mcp]
+        package: polymarket-paper-trader
+        bins: [pm-trader, pm-trader-mcp]
     emoji: "🎯"
-    homepage: "https://github.com/agent-next/pm-sim"
+    homepage: "https://github.com/agent-next/polymarket-paper-trader"
+    tags:
+      - finance
+      - trading
+      - polymarket
+      - prediction-markets
+      - paper-trading
+      - backtesting
+      - mcp
 ---
 
-# pm-sim
+# polymarket-paper-trader
 
 Paper trading simulator for [Polymarket](https://polymarket.com) prediction markets. Executes trades against **live order books** — real prices, real slippage, real fees — without risking real money.
 
@@ -86,6 +94,22 @@ history            — recent trade log
 watch_prices       — monitor live prices for specific markets
 ```
 
+## Share your results
+
+Generate a stats card to share on X/Twitter:
+
+```
+stats_card format="tweet"
+```
+
+Or for Telegram/Discord:
+
+```
+stats_card format="markdown"
+```
+
+The tweet format includes hashtags and install link — ready to post.
+
 ## How it works
 
 - Trades execute against **real Polymarket order books** fetched live via API
@@ -115,6 +139,7 @@ watch_prices       — monitor live prices for specific markets
 | `cancel_order` | Cancel a pending order |
 | `check_orders` | Execute pending orders against live prices |
 | `stats` | Performance analytics |
+| `stats_card` | Shareable stats card (tweet, markdown, plain) |
 | `resolve` | Resolve a closed market |
 | `resolve_all` | Resolve all closed markets |
 | `backtest` | Backtest a strategy against historical snapshots |
@@ -123,7 +148,7 @@ watch_prices       — monitor live prices for specific markets
 
 - **No real money involved** — this is paper trading only
 - **No authentication required** — uses public Polymarket API endpoints only
-- **Data stays local** — all trades stored in local SQLite database at `~/.pm-sim/`
+- **Data stays local** — all trades stored in local SQLite database at `~/.pm-trader/`
 - **Network access** — reads from `gamma-api.polymarket.com` (market data) and `clob.polymarket.com` (order books, prices)
 
 ## External Endpoints
@@ -137,4 +162,4 @@ No user credentials, API keys, or personal data are transmitted.
 
 ## Source
 
-[github.com/agent-next/pm-sim](https://github.com/agent-next/pm-sim) — MIT License, 504 tests, 100% coverage.
+[github.com/agent-next/polymarket-paper-trader](https://github.com/agent-next/polymarket-paper-trader) — MIT License, 528 tests, 100% coverage.

@@ -1,4 +1,4 @@
-"""Shared fixtures for pm-sim tests."""
+"""Shared fixtures for pm-trader tests."""
 
 from __future__ import annotations
 
@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from pm_sim.models import Market, OrderBook, OrderBookLevel
+from pm_trader.models import Market, OrderBook, OrderBookLevel
 
 
 @pytest.fixture
 def tmp_data_dir(tmp_path: Path) -> Path:
     """Return a temporary directory for database storage."""
-    data_dir = tmp_path / "pm-sim-test"
+    data_dir = tmp_path / "pm-trader-test"
     data_dir.mkdir()
     return data_dir
 

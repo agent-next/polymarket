@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from pm_sim.benchmark import compare_accounts, run_strategy
-from pm_sim.engine import Engine
+from pm_trader.benchmark import compare_accounts, run_strategy
+from pm_trader.engine import Engine
 
 
 # ---------------------------------------------------------------------------

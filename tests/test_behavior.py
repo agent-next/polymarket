@@ -1,4 +1,4 @@
-"""Behavior-driven tests for pm-sim.
+"""Behavior-driven tests for pm-trader.
 
 Tests the system from an AI agent's perspective: complete trading workflows,
 P&L accuracy, portfolio consistency, and error recovery. These test WHAT the
@@ -11,8 +11,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pm_sim.engine import Engine
-from pm_sim.models import (
+from pm_trader.engine import Engine
+from pm_trader.models import (
     AmbiguousResolutionError,
     InsufficientBalanceError,
     InvalidOutcomeError,
@@ -24,8 +24,8 @@ from pm_sim.models import (
     OrderBookLevel,
     OrderRejectedError,
 )
-from pm_sim.orderbook import simulate_buy_fill, simulate_sell_fill
-from pm_sim.orders import create_order, get_order, get_pending_orders
+from pm_trader.orderbook import simulate_buy_fill, simulate_sell_fill
+from pm_trader.orders import create_order, get_order, get_pending_orders
 
 
 # ---------------------------------------------------------------------------
@@ -762,7 +762,7 @@ class TestEndToEndAgentWorkflow:
         assert sell_result.trade.shares > 0
 
         # 7. Check P&L stats
-        from pm_sim.analytics import compute_stats
+        from pm_trader.analytics import compute_stats
         stats = compute_stats(
             acct.db.get_trades(limit=1000),
             acct.get_account(),
@@ -895,14 +895,14 @@ class TestDefensiveGuards:
         acct.place_limit_order("test-market", "yes", "buy", 100.0, 0.65)
 
         # Now mock simulate_buy_fill to return an empty fill (defensive edge)
-        from pm_sim.orderbook import FillResult
+        from pm_trader.orderbook import FillResult
         empty_fill = FillResult(
             filled=False, is_partial=False, total_shares=0.0,
             total_cost=0.0, avg_price=0.0, fee=0.0,
             slippage_bps=0.0, levels_filled=0, fills=[],
         )
         with MagicMock() as mock_sim:
-            import pm_sim.engine as engine_mod
+            import pm_trader.engine as engine_mod
             original_sim = engine_mod.simulate_buy_fill
             engine_mod.simulate_buy_fill = lambda *a, **kw: empty_fill
             try:

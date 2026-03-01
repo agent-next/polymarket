@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from pm_sim.engine import Engine
-from pm_sim.models import (
+from pm_trader.engine import Engine
+from pm_trader.models import (
     InsufficientBalanceError,
     InvalidOutcomeError,
     MarketClosedError,
@@ -26,7 +26,7 @@ from pm_sim.models import (
     OrderRejectedError,
 )
 
-# Skip all tests in this module if PM_SIM_LIVE env var is not set
+# Skip all tests in this module if PM_TRADER_LIVE env var is not set
 # This prevents live tests from running in CI or casual pytest runs
 pytestmark = pytest.mark.live
 
@@ -38,7 +38,7 @@ def pytest_configure(config):
 @pytest.fixture(scope="module")
 def engine(tmp_path_factory) -> Engine:
     """Engine with a $10k account for the entire test module."""
-    data_dir = tmp_path_factory.mktemp("pm-sim-e2e")
+    data_dir = tmp_path_factory.mktemp("pm-trader-e2e")
     eng = Engine(data_dir)
     eng.init_account(10_000.0)
     yield eng
@@ -546,7 +546,7 @@ class TestFeeSimulation:
 
     def test_fee_formula_correctness(self, engine: Engine):
         """Verify fee = (bps/10000) * min(price, 1-price) * size."""
-        from pm_sim.orderbook import calculate_fee
+        from pm_trader.orderbook import calculate_fee
 
         # Test at various prices
         cases = [

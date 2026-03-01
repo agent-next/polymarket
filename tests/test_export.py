@@ -8,13 +8,13 @@ import json
 
 import pytest
 
-from pm_sim.export import (
+from pm_trader.export import (
     export_positions_csv,
     export_positions_json,
     export_trades_csv,
     export_trades_json,
 )
-from pm_sim.models import Trade
+from pm_trader.models import Trade
 
 
 def _trade(**overrides) -> Trade:

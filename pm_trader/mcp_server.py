@@ -1,8 +1,8 @@
-"""MCP server exposing pm-sim as tools for AI agents.
+"""MCP server exposing pm-trader as tools for AI agents.
 
 Run with:
-    pm-sim mcp                  # stdio transport (default)
-    python -m pm_sim.mcp_server # direct execution
+    pm-trader mcp                  # stdio transport (default)
+    python -m pm_trader.mcp_server # direct execution
 """
 
 from __future__ import annotations
@@ -12,11 +12,11 @@ from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
-from pm_sim.engine import Engine
+from pm_trader.engine import Engine
 
-DEFAULT_DATA_DIR = Path.home() / ".pm-sim" / "default"
+DEFAULT_DATA_DIR = Path.home() / ".pm-trader" / "default"
 
-mcp = FastMCP("pm-sim", json_response=True)
+mcp = FastMCP("pm-trader", json_response=True)
 
 # ---------------------------------------------------------------------------
 # Engine lifecycle — one Engine per server session
@@ -28,7 +28,7 @@ _engine: Engine | None = None
 def _get_engine(account: str = "default") -> Engine:
     """Return the current Engine, creating if needed."""
     global _engine
-    data_dir = Path.home() / ".pm-sim" / account
+    data_dir = Path.home() / ".pm-trader" / account
     if _engine is None or _engine.db.data_dir != data_dir:
         if _engine is not None:
             _engine.close()
@@ -37,7 +37,7 @@ def _get_engine(account: str = "default") -> Engine:
 
 
 def _ok(data: object) -> str:
-    """Wrap data in the standard pm-sim JSON envelope."""
+    """Wrap data in the standard pm-trader JSON envelope."""
     return json.dumps({"ok": True, "data": data})
 
 
@@ -381,7 +381,7 @@ def stats(account: str = "default") -> str:
     """Get performance analytics: Sharpe ratio, win rate, max drawdown, ROI%."""
     try:
         engine = _get_engine(account)
-        from pm_sim.analytics import compute_stats
+        from pm_trader.analytics import compute_stats
 
         acct = engine.get_account()
         trades = engine.db.get_trades(limit=10_000)
@@ -390,6 +390,77 @@ def stats(account: str = "default") -> str:
 
         result = compute_stats(trades, acct, positions_value)
         return _ok(result)
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
+
+
+@mcp.tool()
+def stats_card(account: str = "default", format: str = "markdown") -> str:
+    """Get a shareable stats card — ready to post on X, Telegram, Discord, etc.
+
+    Returns a formatted card showing ROI, Sharpe, win rate, P&L.
+
+    format: "tweet" (X/Twitter optimized), "markdown" (chat apps), "plain" (no formatting)
+    """
+    try:
+        engine = _get_engine(account)
+        from pm_trader.analytics import compute_stats
+        from pm_trader.card import generate_card, generate_card_plain, generate_tweet
+
+        acct = engine.get_account()
+        trades = engine.db.get_trades(limit=10_000)
+        portfolio_items = engine.get_portfolio()
+        positions_value = sum(p["current_value"] for p in portfolio_items)
+
+        result = compute_stats(trades, acct, positions_value)
+        if format == "tweet":
+            card = generate_tweet(result, account)
+        elif format == "plain":
+            card = generate_card_plain(result, account)
+        else:
+            card = generate_card(result, account)
+        return _ok({"card": card, "stats": result})
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
+
+
+@mcp.tool()
+def leaderboard_entry(account: str = "default") -> str:
+    """Generate a verifiable leaderboard entry for ranking and PK.
+
+    Returns standardized JSON with ROI%, Sharpe, win rate, trade count,
+    max drawdown, and account metadata. Designed for fair comparison:
+    includes starting balance, total trades, and account age.
+    """
+    try:
+        engine = _get_engine(account)
+        from pm_trader.analytics import compute_stats
+
+        acct = engine.get_account()
+        trades = engine.db.get_trades(limit=10_000)
+        portfolio_items = engine.get_portfolio()
+        positions_value = sum(p["current_value"] for p in portfolio_items)
+        result = compute_stats(trades, acct, positions_value)
+
+        first_trade = trades[-1].created_at if trades else None
+        last_trade = trades[0].created_at if trades else None
+
+        return _ok({
+            "account": account,
+            "starting_balance": result.get("starting_balance", 0.0),
+            "total_value": result.get("total_value", 0.0),
+            "roi_pct": result.get("roi_pct", 0.0),
+            "pnl": result.get("pnl", 0.0),
+            "sharpe_ratio": result.get("sharpe_ratio", 0.0),
+            "win_rate": result.get("win_rate", 0.0),
+            "total_trades": result.get("total_trades", 0),
+            "max_drawdown": result.get("max_drawdown", 0.0),
+            "total_fees": result.get("total_fees", 0.0),
+            "first_trade_at": first_trade,
+            "last_trade_at": last_trade,
+            "open_positions": len(portfolio_items),
+            "qualified": result.get("total_trades", 0) >= 10,
+        })
     except Exception as e:
         return _err(str(e), type(e).__name__)
 
@@ -462,7 +533,7 @@ def backtest(
         import importlib
         from pathlib import Path as P
 
-        from pm_sim.backtest import (
+        from pm_trader.backtest import (
             load_snapshots_csv,
             load_snapshots_json,
             run_backtest,

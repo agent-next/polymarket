@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from pm_sim.models import (
+from pm_trader.models import (
     Market,
     Position,
     TickSizeViolationError,

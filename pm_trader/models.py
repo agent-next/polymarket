@@ -1,4 +1,4 @@
-"""Dataclasses and error types for pm-sim."""
+"""Dataclasses and error types for pm-trader."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 class SimError(Exception):
-    """Base error for all pm-sim errors."""
+    """Base error for all pm-trader errors."""
 
     code: str = "SIM_ERROR"
 
@@ -23,7 +23,7 @@ class SimError(Exception):
 class NotInitializedError(SimError):
     code = "NOT_INITIALIZED"
 
-    def __init__(self, message: str = "Account not initialized. Run 'pm-sim init' first.") -> None:
+    def __init__(self, message: str = "Account not initialized. Run 'pm-trader init' first.") -> None:
         super().__init__(message)
 
 

@@ -1,4 +1,4 @@
-"""Tests for the pm-sim CLI."""
+"""Tests for the pm-trader CLI."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 import click.testing
 import pytest
 
-from pm_sim.cli import main
-from pm_sim.models import (
+from pm_trader.cli import main
+from pm_trader.models import (
     Market,
     OrderBook,
     OrderBookLevel,
@@ -28,7 +28,7 @@ def runner():
 
 @pytest.fixture
 def data_dir(tmp_path: Path) -> Path:
-    d = tmp_path / "pm-sim-cli-test"
+    d = tmp_path / "pm-trader-cli-test"
     d.mkdir()
     return d
 
@@ -134,7 +134,7 @@ class TestTradingCommands:
         """Initialize account and set up API mocks."""
         _invoke(runner, ["init"], data_dir)
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_buy(self, MockClient, runner, data_dir):
         self._init_and_mock(runner, data_dir)
 
@@ -152,7 +152,7 @@ class TestTradingCommands:
         assert data["data"]["trade"]["outcome"] == "yes"
         assert data["data"]["account"]["cash"] < 10_000.0
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_sell_no_position(self, MockClient, runner, data_dir):
         self._init_and_mock(runner, data_dir)
 
@@ -164,7 +164,7 @@ class TestTradingCommands:
         assert data["ok"] is False
         assert data["code"] == "NO_POSITION"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_buy_invalid_outcome(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -193,7 +193,7 @@ class TestPortfolioCommands:
         assert data["ok"] is False
         assert data["code"] == "NOT_INITIALIZED"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_portfolio_empty(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -228,7 +228,7 @@ class TestResolveCommand:
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_resolve_all_empty(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["resolve", "--all"], data_dir)
@@ -262,7 +262,7 @@ class TestJsonEnvelope:
 # ---------------------------------------------------------------------------
 
 class TestMarketCommands:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_list(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -272,7 +272,7 @@ class TestMarketCommands:
         assert data["ok"] is True
         assert len(data["data"]) == 1
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_list_by_liquidity(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -281,7 +281,7 @@ class TestMarketCommands:
         data = _parse(result)
         assert data["ok"] is True
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_search(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -291,7 +291,7 @@ class TestMarketCommands:
         assert data["ok"] is True
         assert len(data["data"]) == 1
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_get(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -307,7 +307,7 @@ class TestMarketCommands:
 # ---------------------------------------------------------------------------
 
 class TestPriceCommands:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_price(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -318,7 +318,7 @@ class TestPriceCommands:
         assert data["ok"] is True
         assert data["data"]["yes_price"] == 0.65
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_book(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -336,7 +336,7 @@ class TestPriceCommands:
 # ---------------------------------------------------------------------------
 
 class TestStatsCommand:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_stats_empty(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["stats"], data_dir)
@@ -349,26 +349,65 @@ class TestStatsCommand:
         data = _parse(result)
         assert data["ok"] is False
 
+    @patch("pm_trader.engine.PolymarketClient")
+    def test_stats_card(self, MockClient, runner, data_dir):
+        _invoke(runner, ["init"], data_dir)
+        result = _invoke(runner, ["stats", "--card"], data_dir)
+        assert result.exit_code == 0
+        assert "*Polymarket Paper Trading*" in result.output
+
+    @patch("pm_trader.engine.PolymarketClient")
+    def test_stats_plain(self, MockClient, runner, data_dir):
+        _invoke(runner, ["init"], data_dir)
+        result = _invoke(runner, ["stats", "--plain"], data_dir)
+        assert result.exit_code == 0
+        assert "Polymarket Paper Trading" in result.output
+        assert "*" not in result.output
+
+    @patch("pm_trader.engine.PolymarketClient")
+    def test_stats_tweet(self, MockClient, runner, data_dir):
+        _invoke(runner, ["init"], data_dir)
+        result = _invoke(runner, ["stats", "--tweet"], data_dir)
+        assert result.exit_code == 0
+        assert "#Polymarket" in result.output
+        assert "clawhub install" in result.output
+
+
+class TestLeaderboardCommand:
+    @patch("pm_trader.engine.PolymarketClient")
+    def test_leaderboard_empty(self, MockClient, runner, data_dir):
+        _invoke(runner, ["init"], data_dir)
+        result = _invoke(runner, ["leaderboard"], data_dir)
+        data = _parse(result)
+        assert data["ok"] is True
+        assert data["data"]["total_trades"] == 0
+        assert data["data"]["qualified"] is False
+
+    def test_leaderboard_not_initialized(self, runner, data_dir):
+        result = _invoke(runner, ["leaderboard"], data_dir)
+        data = _parse(result)
+        assert data["ok"] is False
+
 
 # ---------------------------------------------------------------------------
 # Export commands
 # ---------------------------------------------------------------------------
 
 class TestExportCommands:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_trades_csv(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["export", "trades"], data_dir)
         # CSV output (empty — just headers)
         assert result.exit_code == 0
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_trades_json(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["export", "trades", "--format", "json"], data_dir)
         assert result.exit_code == 0
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_trades_to_file(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         out = data_dir / "trades.csv"
@@ -377,7 +416,7 @@ class TestExportCommands:
         assert data["ok"] is True
         assert out.exists()
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_positions_csv(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -385,7 +424,7 @@ class TestExportCommands:
         result = _invoke(runner, ["export", "positions"], data_dir)
         assert result.exit_code == 0
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_positions_json(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -393,7 +432,7 @@ class TestExportCommands:
         result = _invoke(runner, ["export", "positions", "--format", "json"], data_dir)
         assert result.exit_code == 0
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_export_positions_to_file(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -460,7 +499,7 @@ class TestAccountsCommands:
 # ---------------------------------------------------------------------------
 
 class TestOrderCommands:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_place_gtc(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -474,21 +513,21 @@ class TestOrderCommands:
         assert data["ok"] is True
         assert data["data"]["status"] == "pending"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_list(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["orders", "list"], data_dir)
         data = _parse(result)
         assert data["ok"] is True
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_cancel_not_found(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["orders", "cancel", "999"], data_dir)
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_check(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["orders", "check"], data_dir)
@@ -501,7 +540,7 @@ class TestOrderCommands:
 # ---------------------------------------------------------------------------
 
 class TestWatchCommand:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_watch(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -517,7 +556,7 @@ class TestWatchCommand:
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_watch_invalid_outcome(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -580,7 +619,7 @@ class TestBenchmarkCommands:
 # ---------------------------------------------------------------------------
 
 class TestTradingErrorPaths:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_sell_success(self, MockClient, runner, data_dir):
         """Full sell cycle: buy then sell."""
         _invoke(runner, ["init"], data_dir)
@@ -602,7 +641,7 @@ class TestTradingErrorPaths:
 # ---------------------------------------------------------------------------
 
 class TestOrderCommandErrors:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_place_gtd(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -617,7 +656,7 @@ class TestOrderCommandErrors:
         assert data["ok"] is True
         assert data["data"]["order_type"] == "gtd"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_place_and_cancel(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -632,7 +671,7 @@ class TestOrderCommandErrors:
         assert data["ok"] is True
         assert data["data"]["status"] == "cancelled"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_place_invalid_price(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
@@ -653,7 +692,7 @@ class TestOrderCommandErrors:
         assert data["ok"] is True
         assert data["data"] == []
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_orders_check(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["orders", "check"], data_dir)
@@ -669,7 +708,7 @@ class TestOrderCommandErrors:
 
 
 class TestResolveCommands:
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_resolve_all(self, MockClient, runner, data_dir):
         _invoke(runner, ["init"], data_dir)
         result = _invoke(runner, ["resolve", "--all"], data_dir)
@@ -683,9 +722,9 @@ class TestResolveCommands:
         assert data["ok"] is False
         assert data["code"] == "MISSING_ARGUMENT"
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_resolve_specific_market_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import NoPositionError
+        from pm_trader.models import NoPositionError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.get_market.side_effect = NoPositionError("m", "yes")
@@ -731,9 +770,9 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_list_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import ApiError
+        from pm_trader.models import ApiError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.list_markets.side_effect = ApiError("network error")
@@ -741,9 +780,9 @@ class TestCliSimErrorPaths:
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_search_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import ApiError
+        from pm_trader.models import ApiError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.search_markets.side_effect = ApiError("timeout")
@@ -751,9 +790,9 @@ class TestCliSimErrorPaths:
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_markets_get_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import ApiError
+        from pm_trader.models import ApiError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.get_market.side_effect = ApiError("not found", 404)
@@ -761,9 +800,9 @@ class TestCliSimErrorPaths:
         data = _parse(result)
         assert data["ok"] is False
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_price_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import ApiError
+        from pm_trader.models import ApiError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.get_market.side_effect = ApiError("fail")
@@ -772,9 +811,9 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.PolymarketClient")
+    @patch("pm_trader.engine.PolymarketClient")
     def test_book_error(self, MockClient, runner, data_dir):
-        from pm_sim.models import ApiError
+        from pm_trader.models import ApiError
         _invoke(runner, ["init"], data_dir)
         mock_instance = MockClient.return_value
         mock_instance.get_market.side_effect = ApiError("fail")
@@ -801,18 +840,18 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.Engine.init_account")
+    @patch("pm_trader.engine.Engine.init_account")
     def test_init_sim_error(self, mock_init, runner, data_dir):
-        from pm_sim.models import SimError
+        from pm_trader.models import SimError
         mock_init.side_effect = SimError("boom")
         result = _invoke(runner, ["init"], data_dir)
         data = _parse(result)
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.Engine.reset")
+    @patch("pm_trader.engine.Engine.reset")
     def test_reset_sim_error(self, mock_reset, runner, data_dir):
-        from pm_sim.models import SimError
+        from pm_trader.models import SimError
         _invoke(runner, ["init"], data_dir)
         mock_reset.side_effect = SimError("boom")
         result = _invoke(runner, ["reset", "--confirm"], data_dir)
@@ -820,9 +859,9 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.Engine.get_pending_orders")
+    @patch("pm_trader.engine.Engine.get_pending_orders")
     def test_orders_list_sim_error(self, mock_orders, runner, data_dir):
-        from pm_sim.models import SimError
+        from pm_trader.models import SimError
         _invoke(runner, ["init"], data_dir)
         mock_orders.side_effect = SimError("fail")
         result = _invoke(runner, ["orders", "list"], data_dir)
@@ -830,9 +869,9 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.Engine.cancel_limit_order")
+    @patch("pm_trader.engine.Engine.cancel_limit_order")
     def test_orders_cancel_sim_error(self, mock_cancel, runner, data_dir):
-        from pm_sim.models import SimError
+        from pm_trader.models import SimError
         _invoke(runner, ["init"], data_dir)
         mock_cancel.side_effect = SimError("fail")
         result = _invoke(runner, ["orders", "cancel", "1"], data_dir)
@@ -840,9 +879,9 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.engine.Engine.check_orders")
+    @patch("pm_trader.engine.Engine.check_orders")
     def test_orders_check_sim_error(self, mock_check, runner, data_dir):
-        from pm_sim.models import SimError
+        from pm_trader.models import SimError
         _invoke(runner, ["init"], data_dir)
         mock_check.side_effect = SimError("fail")
         result = _invoke(runner, ["orders", "check"], data_dir)
@@ -850,7 +889,7 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert result.exit_code == 1
 
-    @patch("pm_sim.benchmark.run_strategy")
+    @patch("pm_trader.benchmark.run_strategy")
     def test_benchmark_run_success(self, mock_run, runner, data_dir):
         """benchmark run success path echoes _ok(result)."""
         mock_run.return_value = {"strategy": "mod.fn", "pnl": 100.0}
@@ -859,7 +898,7 @@ class TestCliSimErrorPaths:
         assert data["ok"] is True
         assert data["data"]["strategy"] == "mod.fn"
 
-    @patch("pm_sim.benchmark.compare_accounts")
+    @patch("pm_trader.benchmark.compare_accounts")
     def test_benchmark_compare_exception(self, mock_compare, runner, data_dir):
         """benchmark compare raises an exception."""
         mock_compare.side_effect = RuntimeError("comparison failed")
@@ -871,7 +910,7 @@ class TestCliSimErrorPaths:
         assert data["ok"] is False
         assert data["code"] == "BENCHMARK_ERROR"
 
-    @patch("pm_sim.mcp_server.main")
+    @patch("pm_trader.mcp_server.main")
     def test_mcp_command(self, mock_mcp_main, runner, data_dir):
         """mcp command invokes the MCP server."""
         result = runner.invoke(main, ["mcp"])

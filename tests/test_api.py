@@ -10,7 +10,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 
-from pm_sim.api import (
+from pm_trader.api import (
     CACHE_TTL_SECONDS,
     CLOB_BASE,
     GAMMA_BASE,
@@ -18,8 +18,8 @@ from pm_sim.api import (
     _parse_market,
     _parse_order_book,
 )
-from pm_sim.db import Database
-from pm_sim.models import ApiError, MarketNotFoundError
+from pm_trader.db import Database
+from pm_trader.models import ApiError, MarketNotFoundError
 
 
 # ---------------------------------------------------------------------------

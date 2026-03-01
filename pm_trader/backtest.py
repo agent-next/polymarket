@@ -1,4 +1,4 @@
-"""Backtesting engine for pm-sim.
+"""Backtesting engine for pm-trader.
 
 Replays historical price data through trading strategies using synthetic
 order books, then computes performance metrics.
@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from pm_sim.analytics import compute_stats
-from pm_sim.engine import Engine
-from pm_sim.models import OrderBook, OrderBookLevel
+from pm_trader.analytics import compute_stats
+from pm_trader.engine import Engine
+from pm_trader.models import OrderBook, OrderBookLevel
 
 
 @dataclass

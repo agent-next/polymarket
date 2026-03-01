@@ -8,15 +8,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pm_sim.models import (
+from pm_trader.models import (
     Market,
     OrderBook,
     OrderBookLevel,
     Trade,
 )
 
-from pm_sim import mcp_server
-from pm_sim.mcp_server import (
+from pm_trader import mcp_server
+from pm_trader.mcp_server import (
     backtest,
     buy,
     cancel_order,
@@ -26,6 +26,7 @@ from pm_sim.mcp_server import (
     get_order_book,
     history,
     init_account,
+    leaderboard_entry,
     list_markets,
     list_orders,
     place_limit_order,
@@ -36,6 +37,7 @@ from pm_sim.mcp_server import (
     search_markets,
     sell,
     stats,
+    stats_card,
     watch_prices,
 )
 
@@ -159,6 +161,62 @@ class TestStats:
         assert result["data"]["win_rate"] == 0.0
 
 
+class TestStatsCard:
+    def test_markdown_format(self):
+        init_account()
+        result = _parse(stats_card())
+        assert result["ok"] is True
+        assert "card" in result["data"]
+        assert "stats" in result["data"]
+        assert "*Polymarket Paper Trading*" in result["data"]["card"]
+
+    def test_tweet_format(self):
+        init_account()
+        result = _parse(stats_card(format="tweet"))
+        assert result["ok"] is True
+        assert "#Polymarket" in result["data"]["card"]
+
+    def test_plain_format(self):
+        init_account()
+        result = _parse(stats_card(format="plain"))
+        assert result["ok"] is True
+        assert "*" not in result["data"]["card"]
+
+    def test_not_initialized(self):
+        result = _parse(stats_card())
+        assert result["ok"] is False
+
+
+class TestLeaderboardEntry:
+    def test_empty_account(self):
+        init_account()
+        result = _parse(leaderboard_entry())
+        assert result["ok"] is True
+        data = result["data"]
+        assert data["account"] == "default"
+        assert data["total_trades"] == 0
+        assert data["qualified"] is False
+        assert data["first_trade_at"] is None
+        assert data["roi_pct"] == 0.0
+
+    def test_with_trades(self):
+        init_account()
+        from pm_trader.mcp_server import _get_engine
+        _mock_engine_api(_get_engine())
+        buy("will-bitcoin-hit-100k", "yes", 100.0)
+        result = _parse(leaderboard_entry())
+        assert result["ok"] is True
+        data = result["data"]
+        assert data["total_trades"] == 1
+        assert data["qualified"] is False  # need 10+
+        assert data["first_trade_at"] is not None
+        assert data["open_positions"] == 1
+
+    def test_not_initialized(self):
+        result = _parse(leaderboard_entry())
+        assert result["ok"] is False
+
+
 # ---------------------------------------------------------------------------
 # Resolution tools
 # ---------------------------------------------------------------------------
@@ -233,7 +291,7 @@ def _mock_engine_api(engine):
 class TestSearchMarkets:
     def test_search(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(search_markets("bitcoin"))
         assert result["ok"] is True
@@ -242,7 +300,7 @@ class TestSearchMarkets:
 
     def test_search_with_limit(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(search_markets("bitcoin", limit=5))
         assert result["ok"] is True
@@ -251,7 +309,7 @@ class TestSearchMarkets:
 class TestListMarkets:
     def test_list_default(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(list_markets())
         assert result["ok"] is True
@@ -260,7 +318,7 @@ class TestListMarkets:
 
     def test_list_by_liquidity(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(list_markets(sort_by="liquidity"))
         assert result["ok"] is True
@@ -269,7 +327,7 @@ class TestListMarkets:
 class TestGetMarket:
     def test_found(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(get_market("will-bitcoin-hit-100k"))
         assert result["ok"] is True
@@ -278,9 +336,9 @@ class TestGetMarket:
 
     def test_not_found(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         engine = _get_engine()
-        from pm_sim.models import MarketNotFoundError
+        from pm_trader.models import MarketNotFoundError
         engine.api.get_market = MagicMock(side_effect=MarketNotFoundError("nope"))
         result = _parse(get_market("nope"))
         assert result["ok"] is False
@@ -290,7 +348,7 @@ class TestGetMarket:
 class TestGetOrderBook:
     def test_order_book(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(get_order_book("will-bitcoin-hit-100k", "yes"))
         assert result["ok"] is True
@@ -299,7 +357,7 @@ class TestGetOrderBook:
 
     def test_order_book_error(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         engine = _get_engine()
         engine.api.get_market = MagicMock(side_effect=Exception("network"))
         result = _parse(get_order_book("bad", "yes"))
@@ -309,7 +367,7 @@ class TestGetOrderBook:
 class TestWatchPrices:
     def test_watch(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(watch_prices("will-bitcoin-hit-100k"))
         assert result["ok"] is True
@@ -319,7 +377,7 @@ class TestWatchPrices:
     def test_watch_invalid_outcome_returns_error(self):
         """Invalid outcome causes ValueError from get_token_id."""
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         engine = _get_engine()
         # Market resolves but has no token for 'invalid'
         bad_market = Market(
@@ -343,7 +401,7 @@ class TestWatchPrices:
 class TestBuyTool:
     def test_buy_success(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(buy("will-bitcoin-hit-100k", "yes", 100.0))
         assert result["ok"] is True
@@ -358,14 +416,14 @@ class TestBuyTool:
 
     def test_buy_insufficient_balance(self):
         init_account(balance=1.0)
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(buy("will-bitcoin-hit-100k", "yes", 100_000.0))
         assert result["ok"] is False
 
     def test_buy_invalid_outcome(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(buy("will-bitcoin-hit-100k", "maybe", 100.0))
         assert result["ok"] is False
@@ -375,7 +433,7 @@ class TestBuyTool:
 class TestSellTool:
     def test_sell_no_position(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(sell("will-bitcoin-hit-100k", "yes", 10.0))
         assert result["ok"] is False
@@ -383,7 +441,7 @@ class TestSellTool:
 
     def test_sell_after_buy(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         buy("will-bitcoin-hit-100k", "yes", 100.0)
         result = _parse(sell("will-bitcoin-hit-100k", "yes", 10.0))
@@ -394,7 +452,7 @@ class TestSellTool:
 class TestHistoryWithData:
     def test_history_after_trade(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         buy("will-bitcoin-hit-100k", "yes", 50.0)
         result = _parse(history())
@@ -407,7 +465,7 @@ class TestHistoryWithData:
 class TestPortfolioWithData:
     def test_portfolio_after_trade(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         buy("will-bitcoin-hit-100k", "yes", 50.0)
         result = _parse(portfolio())
@@ -424,7 +482,7 @@ class TestPortfolioWithData:
 class TestPlaceLimitOrder:
     def test_place_gtc(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(place_limit_order(
             "will-bitcoin-hit-100k", "yes", "buy", 100.0, 0.55,
@@ -435,7 +493,7 @@ class TestPlaceLimitOrder:
 
     def test_place_gtd(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(place_limit_order(
             "will-bitcoin-hit-100k", "yes", "buy", 100.0, 0.55,
@@ -446,7 +504,7 @@ class TestPlaceLimitOrder:
 
     def test_place_invalid_side(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(place_limit_order(
             "will-bitcoin-hit-100k", "yes", "hold", 100.0, 0.55,
@@ -455,7 +513,7 @@ class TestPlaceLimitOrder:
 
     def test_place_invalid_order_type(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         result = _parse(place_limit_order(
             "will-bitcoin-hit-100k", "yes", "buy", 100.0, 0.55,
@@ -467,9 +525,9 @@ class TestPlaceLimitOrder:
 class TestResolve:
     def test_resolve_no_position(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         engine = _get_engine()
-        from pm_sim.models import NoPositionError
+        from pm_trader.models import NoPositionError
         engine.api.get_market = MagicMock(side_effect=NoPositionError("m", "yes"))
         result = _parse(resolve("m"))
         assert result["ok"] is False
@@ -483,7 +541,7 @@ class TestResolve:
 class TestCancelOrderSuccess:
     def test_cancel_existing(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         _mock_engine_api(_get_engine())
         # Place then cancel
         order_result = _parse(place_limit_order(
@@ -519,7 +577,7 @@ class TestHistoryError:
 class TestResolveWithData:
     def test_resolve_winning_position(self):
         init_account()
-        from pm_sim.mcp_server import _get_engine
+        from pm_trader.mcp_server import _get_engine
         engine = _get_engine()
         _mock_engine_api(engine)
         # Buy a position first
@@ -556,13 +614,13 @@ class TestResolveAllError:
 class TestBacktestTool:
     def test_invalid_strategy_path(self):
         """strategy_path must be module.function."""
-        from pm_sim.mcp_server import backtest
+        from pm_trader.mcp_server import backtest
         result = _parse(backtest("/tmp/data.csv", "bad_path"))
         assert result["ok"] is False
 
     def test_backtest_csv(self, tmp_path):
         """Backtest with a CSV file and noop strategy."""
-        from pm_sim.mcp_server import backtest
+        from pm_trader.mcp_server import backtest
         csv = tmp_path / "prices.csv"
         csv.write_text(
             "timestamp,market_slug,outcome,midpoint\n"
@@ -588,7 +646,7 @@ class TestBacktestTool:
 
     def test_backtest_json(self, tmp_path):
         """Backtest with a JSON file."""
-        from pm_sim.mcp_server import backtest
+        from pm_trader.mcp_server import backtest
         import json as json_mod
         data = [
             {"timestamp": "2025-01-01T00:00:00Z", "market_slug": "m", "outcome": "yes", "midpoint": 0.50},

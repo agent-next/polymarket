@@ -6,13 +6,13 @@ import math
 
 import pytest
 
-from pm_sim.analytics import (
+from pm_trader.analytics import (
     compute_stats,
     max_drawdown,
     sharpe_ratio,
     win_rate,
 )
-from pm_sim.models import Account, Trade
+from pm_trader.models import Account, Trade
 
 
 # ---------------------------------------------------------------------------

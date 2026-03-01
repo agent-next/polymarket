@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pm_sim.backtest import (
+from pm_trader.backtest import (
     BacktestResult,
     PriceSnapshot,
     _build_synthetic_book,
@@ -17,8 +17,8 @@ from pm_sim.backtest import (
     load_snapshots_json,
     run_backtest,
 )
-from pm_sim.engine import Engine
-from pm_sim.models import Market
+from pm_trader.engine import Engine
+from pm_trader.models import Market
 
 
 # ---------------------------------------------------------------------------

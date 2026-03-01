@@ -1,4 +1,4 @@
-"""Trade execution engine for pm-sim.
+"""Trade execution engine for pm-trader.
 
 Orchestrates the full buy/sell/resolve workflow by wiring together
 the API client, order book simulator, and database layer.
@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pm_sim.api import PolymarketClient
-from pm_sim.db import Database
-from pm_sim.models import (
+from pm_trader.api import PolymarketClient
+from pm_trader.db import Database
+from pm_trader.models import (
     Account,
     AmbiguousResolutionError,
     ApiError,
@@ -25,7 +25,7 @@ from pm_sim.models import (
     Trade,
     TradeResult,
 )
-from pm_sim.orders import (
+from pm_trader.orders import (
     cancel_order,
     create_order,
     expire_orders,
@@ -35,7 +35,7 @@ from pm_sim.orders import (
     reject_order,
     should_fill,
 )
-from pm_sim.orderbook import simulate_buy_fill, simulate_sell_fill
+from pm_trader.orderbook import simulate_buy_fill, simulate_sell_fill
 
 MIN_ORDER_USD = 1.0  # Polymarket minimum order size
 
