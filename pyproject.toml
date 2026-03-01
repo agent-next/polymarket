@@ -16,11 +16,15 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=6.0",
     "pytest-httpx>=0.30",
 ]
 
 [tool.setuptools.packages.find]
 include = ["pm_trader*"]
+
+[tool.pytest.ini_options]
+markers = ["live: tests requiring network access to Polymarket API"]
 
 [project.scripts]
 pm-trader = "pm_trader.cli:main"
