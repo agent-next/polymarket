@@ -341,6 +341,12 @@ class TestLeaderboardCard:
         result = _parse(leaderboard_card(accounts="good,bad"))
         assert result["ok"] is True
 
+    def test_outer_exception(self):
+        with patch("pm_trader.mcp_server.Path.home", side_effect=RuntimeError("boom")):
+            result = _parse(leaderboard_card())
+        assert result["ok"] is False
+        assert "boom" in result["error"]
+
 
 # ---------------------------------------------------------------------------
 # Resolution tools

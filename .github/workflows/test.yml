@@ -33,4 +33,4 @@ jobs:
         run: python -m pytest tests/ -x -q -m "not live"
       - name: Run tests with coverage
         if: matrix.python-version == '3.13'
-        run: python -m pytest tests/ -x -q -m "not live" --cov=pm_trader --cov-report=term-missing
+        run: python -m pytest tests/ -x -q -m "not live" --cov=pm_trader --cov-report=term-missing --cov-fail-under=100
