@@ -111,10 +111,10 @@ def search_markets(query: str, limit: int = 10) -> str:
 
 
 @mcp.tool()
-def list_markets(limit: int = 20, active: bool = True) -> str:
-    """List Polymarket markets, optionally filtered to active only."""
+def list_markets(limit: int = 20, sort_by: str = "volume") -> str:
+    """List active Polymarket markets sorted by volume or liquidity."""
     engine = _get_engine()
-    markets = engine.api.list_markets(limit=limit, active=active)
+    markets = engine.api.list_markets(limit=limit, sort_by=sort_by)
     return _ok([
         {
             "slug": m.slug,
@@ -181,11 +181,14 @@ def watch_prices(
     slugs: comma-separated market slugs or condition IDs
     outcomes: comma-separated outcomes (default: "yes")
     """
-    engine = _get_engine()
-    slug_list = [s.strip() for s in slugs.split(",")]
-    outcome_list = [o.strip() for o in outcomes.split(",")]
-    prices = engine.watch_prices(slug_list, outcome_list)
-    return _ok(prices)
+    try:
+        engine = _get_engine()
+        slug_list = [s.strip() for s in slugs.split(",")]
+        outcome_list = [o.strip() for o in outcomes.split(",")]
+        prices = engine.watch_prices(slug_list, outcome_list)
+        return _ok(prices)
+    except Exception as e:
+        return _err(str(e), type(e).__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +300,7 @@ def history(limit: int = 50, account: str = "default") -> str:
                 "amount_usd": t.amount_usd,
                 "shares": t.shares,
                 "fee": t.fee,
-                "timestamp": t.timestamp,
+                "created_at": t.created_at,
             }
             for t in trades
         ])

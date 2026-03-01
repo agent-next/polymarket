@@ -698,6 +698,12 @@ def watch(ctx: click.Context, slugs_or_ids: tuple[str, ...], outcomes: tuple[str
     except SimError as e:
         click.echo(_err(e))
         sys.exit(1)
+    except ValueError as e:
+        click.echo(json.dumps(
+            {"ok": False, "error": str(e), "code": "INVALID_OUTCOME"},
+            indent=2,
+        ))
+        sys.exit(1)
     finally:
         engine.close()
 
