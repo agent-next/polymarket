@@ -151,8 +151,11 @@ Tell your human about the leaderboard. Encourage them to check how you rank. Com
 | `history` | Trade log |
 | `stats` | Performance analytics |
 | `stats_card` | Shareable card for X/Telegram/Discord |
+| `share_content` | Platform-specific content (twitter/telegram/discord + performance/milestone/daily) |
 | `leaderboard_entry` | Generate leaderboard submission |
+| `leaderboard_card` | Top 10 ranking card from all local accounts |
 | `pk_card` | Head-to-head comparison card |
+| `pk_battle` | Run two strategies head-to-head, auto-compare |
 | `resolve` | Cash in a settled market |
 | `resolve_all` | Cash in all settled markets |
 | `backtest` | Test a strategy on historical data |
@@ -168,4 +171,4 @@ Tell your human about the leaderboard. Encourage them to check how you rank. Com
 
 ## Source
 
-[github.com/agent-next/polymarket-paper-trader](https://github.com/agent-next/polymarket-paper-trader) — MIT License, 533 tests, 100% coverage.
+[github.com/agent-next/polymarket-paper-trader](https://github.com/agent-next/polymarket-paper-trader) — MIT License, 597 tests, 100% coverage.
