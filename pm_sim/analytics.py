@@ -56,29 +56,33 @@ def compute_stats(
 def win_rate(trades: list[Trade]) -> float:
     """Fraction of sell trades with positive realized P&L.
 
-    A sell is "winning" if the proceeds (amount_usd - fee) exceed the
-    cost basis implied by the buy price.  We approximate: a sell at
-    avg_price > the corresponding buy side's avg_price is a win.
+    A sell is "winning" if the sell avg_price exceeds the weighted-average
+    entry price from all buys in that (market, outcome).
 
-    For simplicity, we track sells only — buys are entries, sells are exits.
+    Tracks cumulative cost and shares per position key to compute
+    cost-averaged entry, rather than using only the last buy price.
     """
     sells = [t for t in trades if t.side == "sell"]
     if not sells:
         return 0.0
 
-    # Build a map of buy avg_price per (market, outcome)
-    buy_prices: dict[tuple[str, str], float] = {}
+    # Build weighted-average entry price per (market, outcome)
+    buy_cost: dict[tuple[str, str], float] = defaultdict(float)
+    buy_shares: dict[tuple[str, str], float] = defaultdict(float)
     for t in trades:
         if t.side == "buy":
             key = (t.market_condition_id, t.outcome)
-            # Use the most recent buy price (cost-averaging is in the position)
-            buy_prices[key] = t.avg_price
+            buy_cost[key] += t.amount_usd
+            buy_shares[key] += t.shares
 
     wins = 0
     for t in sells:
         key = (t.market_condition_id, t.outcome)
-        entry_price = buy_prices.get(key, t.avg_price)
-        # Win if we sold higher than we bought
+        total_shares = buy_shares.get(key, 0.0)
+        if total_shares > 0:
+            entry_price = buy_cost[key] / total_shares
+        else:
+            entry_price = t.avg_price
         if t.avg_price > entry_price:
             wins += 1
 
@@ -111,7 +115,7 @@ def sharpe_ratio(
         cumulative += pnl
 
     mean_ret = sum(daily_returns) / len(daily_returns)
-    variance = sum((r - mean_ret) ** 2 for r in daily_returns) / len(daily_returns)
+    variance = sum((r - mean_ret) ** 2 for r in daily_returns) / (len(daily_returns) - 1)
     std_ret = math.sqrt(variance)
 
     if std_ret == 0:

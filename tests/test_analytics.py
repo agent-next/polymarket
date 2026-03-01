@@ -70,6 +70,11 @@ class TestWinRate:
         trades = [_trade(side="buy")]
         assert win_rate(trades) == 0.0
 
+    def test_sell_without_prior_buy(self):
+        """Sell with no matching buy falls back to sell's own avg_price (always tie → 0%)."""
+        trades = [_trade(id=1, side="sell", avg_price=0.50)]
+        assert win_rate(trades) == 0.0
+
     def test_all_wins(self):
         trades = [
             _trade(id=1, side="buy", avg_price=0.50, created_at="2026-01-01 10:00:00"),
@@ -92,6 +97,28 @@ class TestWinRate:
             _trade(id=4, side="sell", avg_price=0.40, market_condition_id="0x2"),  # loss
         ]
         assert win_rate(trades) == 0.5
+
+    def test_cost_averaged_entry(self):
+        """Multiple buys at different prices: win_rate uses weighted-average entry."""
+        # Buy 100@0.40 ($40) + Buy 50@0.60 ($30) → avg entry = $70/150 = 0.467
+        # Sell at 0.50 > 0.467 → should be a WIN
+        trades = [
+            _trade(id=1, side="buy", avg_price=0.40, amount_usd=40.0, shares=100.0),
+            _trade(id=2, side="buy", avg_price=0.60, amount_usd=30.0, shares=50.0),
+            _trade(id=3, side="sell", avg_price=0.50, amount_usd=37.5, shares=75.0),
+        ]
+        assert win_rate(trades) == 1.0  # Sell at 0.50 > avg entry 0.467
+
+    def test_cost_averaged_loss(self):
+        """Cost-averaged entry correctly identifies a loss."""
+        # Buy 100@0.60 ($60) + Buy 100@0.70 ($70) → avg entry = $130/200 = 0.65
+        # Sell at 0.60 < 0.65 → LOSS
+        trades = [
+            _trade(id=1, side="buy", avg_price=0.60, amount_usd=60.0, shares=100.0),
+            _trade(id=2, side="buy", avg_price=0.70, amount_usd=70.0, shares=100.0),
+            _trade(id=3, side="sell", avg_price=0.60, amount_usd=60.0, shares=100.0),
+        ]
+        assert win_rate(trades) == 0.0
 
 
 # ---------------------------------------------------------------------------
