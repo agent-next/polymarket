@@ -198,27 +198,30 @@ class TestBuyEmptyBook:
 
 
 class TestBuySlippageCalculation:
-    """Verify slippage_bps is correct relative to midpoint."""
+    """Verify slippage metrics vs best quote and midpoint."""
 
     def test_single_level_slippage(self, multi_level_book: OrderBook) -> None:
-        # Midpoint = (0.64 + 0.66) / 2 = 0.65
-        # Single-level fill at 0.66 -> slippage = (0.66 - 0.65) / 0.65 * 10000
-        # = 0.01 / 0.65 * 10000 = 153.846...
+        # Single-level fill at best ask (0.66) => zero slippage vs best quote.
+        # Midpoint remains positive slippage.
         result = simulate_buy_fill(multi_level_book, 50.0, fee_rate_bps=0)
 
+        best_ask = 0.66
         midpoint = 0.65
-        expected_slippage = (0.66 - midpoint) / midpoint * 10_000
-        assert result.slippage_bps == pytest.approx(expected_slippage)
+        expected_best_quote = (0.66 - best_ask) / best_ask * 10_000
+        expected_midpoint = (0.66 - midpoint) / midpoint * 10_000
+        assert result.slippage_bps == pytest.approx(expected_best_quote)
+        assert result.slippage_bps_midpoint == pytest.approx(expected_midpoint)
 
     def test_multi_level_slippage(self, multi_level_book: OrderBook) -> None:
-        # $100 buy: avg_price = 100 / (80 + 47.20/0.67) = 0.66468...
-        # Midpoint = 0.65
-        # slippage = (avg_price - 0.65) / 0.65 * 10000
+        # $100 buy crosses levels; avg above best ask and above midpoint.
         result = simulate_buy_fill(multi_level_book, 100.0, fee_rate_bps=0)
 
+        best_ask = 0.66
         midpoint = 0.65
-        expected_slippage = (result.avg_price - midpoint) / midpoint * 10_000
-        assert result.slippage_bps == pytest.approx(expected_slippage)
+        expected_best_quote = (result.avg_price - best_ask) / best_ask * 10_000
+        expected_midpoint = (result.avg_price - midpoint) / midpoint * 10_000
+        assert result.slippage_bps == pytest.approx(expected_best_quote)
+        assert result.slippage_bps_midpoint == pytest.approx(expected_midpoint)
         assert result.slippage_bps > 0  # buying pushes price up
 
 
@@ -286,12 +289,15 @@ class TestSellMultiLevelFill:
         assert result.fills[1].cost == pytest.approx(31.50)
 
     def test_sell_slippage_is_negative(self, multi_level_book: OrderBook) -> None:
-        # Selling below midpoint (0.65) means negative slippage
+        # Selling below best bid and midpoint both produce negative slippage.
         result = simulate_sell_fill(multi_level_book, 200.0, fee_rate_bps=0)
 
+        best_bid = 0.64
         midpoint = 0.65
-        expected_slippage = (0.6375 - midpoint) / midpoint * 10_000
-        assert result.slippage_bps == pytest.approx(expected_slippage)
+        expected_best_quote = (0.6375 - best_bid) / best_bid * 10_000
+        expected_midpoint = (0.6375 - midpoint) / midpoint * 10_000
+        assert result.slippage_bps == pytest.approx(expected_best_quote)
+        assert result.slippage_bps_midpoint == pytest.approx(expected_midpoint)
         assert result.slippage_bps < 0  # selling pushes price down
 
 

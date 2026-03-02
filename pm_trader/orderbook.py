@@ -59,6 +59,18 @@ def _midpoint(book: OrderBook) -> float | None:
     return (best_bid + best_ask) / 2.0
 
 
+def _best_ask(book: OrderBook) -> float | None:
+    if not book.asks:
+        return None
+    return min(level.price for level in book.asks)
+
+
+def _best_bid(book: OrderBook) -> float | None:
+    if not book.bids:
+        return None
+    return max(level.price for level in book.bids)
+
+
 def _empty_fill_result() -> FillResult:
     """Return a FillResult representing no execution."""
     return FillResult(
@@ -71,6 +83,7 @@ def _empty_fill_result() -> FillResult:
         levels_filled=0,
         is_partial=False,
         fills=[],
+        slippage_bps_midpoint=0.0,
     )
 
 
@@ -185,7 +198,14 @@ def simulate_buy_fill(
 
     midpoint = _midpoint(book)
     if midpoint and midpoint > 0:
-        slippage_bps = (avg_price - midpoint) / midpoint * 10_000
+        slippage_bps_midpoint = (avg_price - midpoint) / midpoint * 10_000
+    else:
+        slippage_bps_midpoint = 0.0
+
+    best_ask = _best_ask(book)
+    if best_ask and best_ask > 0:
+        # Buy slippage should be evaluated against the best ask you could have gotten.
+        slippage_bps = (avg_price - best_ask) / best_ask * 10_000
     else:
         slippage_bps = 0.0
 
@@ -199,6 +219,7 @@ def simulate_buy_fill(
         levels_filled=len(fills),
         is_partial=is_partial,
         fills=fills,
+        slippage_bps_midpoint=slippage_bps_midpoint,
     )
 
 
@@ -292,8 +313,14 @@ def simulate_sell_fill(
 
     midpoint = _midpoint(book)
     if midpoint and midpoint > 0:
-        # Selling below midpoint means negative slippage
-        slippage_bps = (avg_price - midpoint) / midpoint * 10_000
+        slippage_bps_midpoint = (avg_price - midpoint) / midpoint * 10_000
+    else:
+        slippage_bps_midpoint = 0.0
+
+    best_bid = _best_bid(book)
+    if best_bid and best_bid > 0:
+        # Selling below best bid means negative slippage.
+        slippage_bps = (avg_price - best_bid) / best_bid * 10_000
     else:
         slippage_bps = 0.0
 
@@ -307,4 +334,5 @@ def simulate_sell_fill(
         levels_filled=len(fills),
         is_partial=is_partial,
         fills=fills,
+        slippage_bps_midpoint=slippage_bps_midpoint,
     )
