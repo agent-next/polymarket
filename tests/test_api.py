@@ -134,6 +134,20 @@ class TestParseMarket:
         assert market.volume == 0.0
         assert market.liquidity == 0.0
 
+    def test_string_bool_flags_are_parsed(self):
+        data = {
+            **SAMPLE_GAMMA_MARKET,
+            "active": "TRUE",
+            "closed": "false",
+            "acceptingOrders": "true",
+            "negRisk": "FALSE",
+        }
+        market = _parse_market(data)
+        assert market.active is True
+        assert market.closed is False
+        assert market.accepting_orders is True
+        assert market.neg_risk is False
+
 
 # ---------------------------------------------------------------------------
 # _parse_order_book tests

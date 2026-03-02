@@ -9,8 +9,15 @@ from __future__ import annotations
 
 import pytest
 
-from pm_trader.models import OrderBook, OrderBookLevel
-from pm_trader.orderbook import calculate_fee, simulate_buy_fill, simulate_sell_fill
+from pm_trader.models import Fill, OrderBook, OrderBookLevel
+from pm_trader.orderbook import (
+    _best_ask,
+    _best_bid,
+    _sum_level_fees,
+    calculate_fee,
+    simulate_buy_fill,
+    simulate_sell_fill,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -711,3 +718,29 @@ class TestDesignDocExample:
             for fill in result.fills
         )
         assert result.fee == pytest.approx(expected_fee)
+
+
+class TestCoverageBranches:
+    def test_best_quote_helpers_return_none_on_empty_side(self) -> None:
+        assert _best_ask(OrderBook(bids=[OrderBookLevel(price=0.60, size=10.0)], asks=[])) is None
+        assert _best_bid(OrderBook(bids=[], asks=[OrderBookLevel(price=0.70, size=10.0)])) is None
+
+    def test_sum_level_fees_returns_zero_when_formula_is_zero(self) -> None:
+        fills = [Fill(price=0.0, shares=10.0, cost=5.0, level=1)]
+        assert _sum_level_fees(200, fills) == 0.0
+
+    def test_buy_slippage_falls_back_to_zero_when_best_ask_nonpositive(self) -> None:
+        book = OrderBook(
+            bids=[OrderBookLevel(price=0.40, size=100.0)],
+            asks=[OrderBookLevel(price=0.0, size=100.0)],
+        )
+        result = simulate_buy_fill(book, 10.0, fee_rate_bps=0, order_type="fak")
+        assert result.slippage_bps == pytest.approx(0.0)
+
+    def test_sell_slippage_falls_back_to_zero_when_best_bid_nonpositive(self) -> None:
+        book = OrderBook(
+            bids=[OrderBookLevel(price=0.0, size=100.0)],
+            asks=[OrderBookLevel(price=0.60, size=100.0)],
+        )
+        result = simulate_sell_fill(book, 10.0, fee_rate_bps=0, order_type="fak")
+        assert result.slippage_bps == pytest.approx(0.0)

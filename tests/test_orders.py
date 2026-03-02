@@ -14,6 +14,7 @@ from pm_trader.orders import (
     expire_orders,
     get_pending_orders,
     init_orders_schema,
+    _migrate_orders_schema_if_needed,
     mark_partially_filled,
     should_fill,
     LimitOrder,
@@ -190,3 +191,48 @@ class TestShouldFill:
         assert should_fill(order, 0.70) is True
         assert should_fill(order, 0.80) is True
         assert should_fill(order, 0.60) is False
+
+
+class TestOrdersMigration:
+    def test_noop_when_table_missing(self):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        _migrate_orders_schema_if_needed(conn)
+
+    def test_migrates_legacy_schema_to_remaining_amount(self):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """\
+            CREATE TABLE limit_orders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                market_slug TEXT NOT NULL,
+                market_condition_id TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                side TEXT NOT NULL,
+                amount REAL NOT NULL,
+                limit_price REAL NOT NULL,
+                order_type TEXT NOT NULL DEFAULT 'gtc',
+                expires_at TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                filled_at TEXT
+            );
+            INSERT INTO limit_orders (
+                market_slug, market_condition_id, outcome, side, amount,
+                limit_price, order_type, status
+            ) VALUES
+                ('m1', '0x1', 'yes', 'buy', 100.0, 0.55, 'gtc', 'pending'),
+                ('m2', '0x2', 'no', 'sell', 50.0, 0.60, 'gtc', 'filled');
+            """
+        )
+
+        _migrate_orders_schema_if_needed(conn)
+
+        migrated = conn.execute(
+            "SELECT amount, remaining_amount, status FROM limit_orders ORDER BY id"
+        ).fetchall()
+        assert migrated[0]["status"] == "pending"
+        assert migrated[0]["remaining_amount"] == pytest.approx(migrated[0]["amount"])
+        assert migrated[1]["status"] == "filled"
+        assert migrated[1]["remaining_amount"] == pytest.approx(0.0)

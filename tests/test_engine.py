@@ -621,6 +621,10 @@ class TestLimitOrderValidation:
                 "btc", "yes", "buy", 100.0, 0.555,
             )
 
+    def test_zero_tick_size_short_circuits_validation(self):
+        # Defensive branch: non-positive tick should skip snapping checks.
+        Engine._validate_tick_size(0.555, 0.0)
+
 
 class TestLimitOrderPriceEnforcement:
     """Bug #1: Limit orders must NOT fill at prices beyond the limit."""
@@ -663,6 +667,32 @@ class TestLimitOrderPriceEnforcement:
         filled = [r for r in results if r["action"] == "filled"]
         assert len(filled) == 1
         assert len(get_pending_orders(initialized_engine.db.conn)) == 0
+
+    def test_limit_order_fetches_tick_size_when_market_tick_is_missing(self, initialized_engine: Engine):
+        _mock_api(initialized_engine)
+        market = Market(
+            condition_id=SAMPLE_MARKET.condition_id,
+            slug=SAMPLE_MARKET.slug,
+            question=SAMPLE_MARKET.question,
+            description=SAMPLE_MARKET.description,
+            outcomes=list(SAMPLE_MARKET.outcomes),
+            outcome_prices=list(SAMPLE_MARKET.outcome_prices),
+            tokens=[dict(t) for t in SAMPLE_MARKET.tokens],
+            active=SAMPLE_MARKET.active,
+            closed=SAMPLE_MARKET.closed,
+            volume=SAMPLE_MARKET.volume,
+            liquidity=SAMPLE_MARKET.liquidity,
+            end_date=SAMPLE_MARKET.end_date,
+            fee_rate_bps=SAMPLE_MARKET.fee_rate_bps,
+            tick_size=0.0,
+        )
+        initialized_engine.api.get_market = MagicMock(return_value=market)
+        initialized_engine.api.get_tick_size = MagicMock(return_value=0.01)
+
+        initialized_engine.place_limit_order(
+            "btc", "yes", "buy", 100.0, 0.55,
+        )
+        initialized_engine.api.get_tick_size.assert_called_once_with("tok_yes")
 
 
 class TestLimitOrderRemainingAmount:
