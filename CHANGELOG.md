@@ -19,7 +19,7 @@ All notable changes to `polymarket-paper-trader` are documented here.
 - Add data trust boundaries to SKILL.md — mark Polymarket API data as untrusted, prevent indirect prompt injection via market content
 - **CRITICAL**: Block arbitrary code execution via `importlib.import_module` — strategy loading now restricted to allowlisted packages (`examples.*`, `tests.test_benchmark.*`)
 - **HIGH**: Prevent path traversal via account parameter — reject `..`, `/`, `\` in account names (MCP + CLI)
-- **HIGH**: Harden CI/CD — pin all GitHub Actions to full commit SHAs, add restrictive top-level `permissions:`, pin `clawhub@0.1`
+- **HIGH**: Harden CI/CD — pin all GitHub Actions to full commit SHAs, add restrictive top-level `permissions:`, pin `clawhub@0.7.0`
 - **HIGH**: Bump `setuptools` minimum to `>=78.1.1` (CVE fix)
 - **MEDIUM**: Sanitize error messages — hide internal paths from unexpected exceptions
 - **MEDIUM**: Cap API result limits (`MAX_RESULTS=100`) to prevent resource exhaustion
